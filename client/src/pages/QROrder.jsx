@@ -97,9 +97,14 @@ export default function QROrder() {
         return;
       }
       
-      // Use the total that's already calculated
+      // Debug: Show cart details
+      const cartDetails = cart.map(item => `${item.name}: ₹${item.price} x ${item.quantity} = ₹${item.price * item.quantity}`).join('\n');
       console.log('Cart items:', cart);
+      console.log('Cart details:\n', cartDetails);
       console.log('Total amount:', total);
+      
+      // Show debug alert
+      alert(`DEBUG INFO:\nCart Items: ${cart.length}\n${cartDetails}\n\nTotal: ₹${total}`);
       
       if (!total || total <= 0) {
         alert('Cart is empty or invalid. Total: ₹' + total);
@@ -134,7 +139,7 @@ export default function QROrder() {
         console.log('Full UPI URL:', upiUrl);
         
         // Show alert with amount before redirecting
-        alert(`Redirecting to UPI payment for ₹${amount}`);
+        alert(`Redirecting to UPI payment for ₹${amount}\n\nUPI ID: ${upiId}\nAmount: ${amount}`);
         
         // Try to open UPI app
         window.location.href = upiUrl;
