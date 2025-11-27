@@ -132,9 +132,14 @@ export default function Reels() {
     try {
       const finalTotal = selectedReel.price * quantity + 40 + Math.round((selectedReel.price * quantity) * 0.05);
       
+      if (finalTotal <= 0) {
+        alert('Invalid order total');
+        return;
+      }
+      
       // If UPI payment, redirect to UPI app
       if (orderForm.paymentMethod === 'upi') {
-        if (!selectedReel.restaurantId.paymentSettings?.upiId) {
+        if (!selectedReel?.restaurantId?.paymentSettings?.upiId) {
           alert('Restaurant UPI not configured. Please contact restaurant or choose Cash on Delivery.');
           return;
         }
@@ -142,11 +147,15 @@ export default function Reels() {
         // Create UPI payment link
         const upiId = selectedReel.restaurantId.paymentSettings.upiId;
         const upiName = selectedReel.restaurantId.paymentSettings.upiName || selectedReel.restaurantId.name;
-        const amount = finalTotal;
+        const amount = finalTotal.toFixed(2);
         const note = `Order: ${selectedReel.dishName} from ${selectedReel.restaurantId.name}`;
+        
+        console.log('UPI Payment Details:', { upiId, upiName, amount, note });
         
         // UPI deep link format
         const upiUrl = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(note)}`;
+        
+        console.log('UPI URL:', upiUrl);
         
         // Try to open UPI app
         window.location.href = upiUrl;

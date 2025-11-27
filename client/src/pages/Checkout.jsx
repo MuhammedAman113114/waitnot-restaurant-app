@@ -25,9 +25,14 @@ export default function Checkout() {
     try {
       const finalTotal = total + 40 + Math.round(total * 0.05);
       
+      if (finalTotal <= 0) {
+        alert('Invalid order total');
+        return;
+      }
+      
       // If UPI payment, redirect to UPI app
       if (formData.paymentMethod === 'upi') {
-        if (!restaurant.paymentSettings?.upiId) {
+        if (!restaurant?.paymentSettings?.upiId) {
           alert('Restaurant UPI not configured. Please contact restaurant or choose Cash on Delivery.');
           return;
         }
@@ -35,11 +40,15 @@ export default function Checkout() {
         // Create UPI payment link
         const upiId = restaurant.paymentSettings.upiId;
         const upiName = restaurant.paymentSettings.upiName || restaurant.name;
-        const amount = finalTotal;
+        const amount = finalTotal.toFixed(2);
         const note = `Order from ${restaurant.name}`;
+        
+        console.log('UPI Payment Details:', { upiId, upiName, amount, note });
         
         // UPI deep link format
         const upiUrl = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(note)}`;
+        
+        console.log('UPI URL:', upiUrl);
         
         // Try to open UPI app
         window.location.href = upiUrl;
