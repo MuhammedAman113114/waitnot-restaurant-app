@@ -11,7 +11,7 @@ export async function initDB() {
   try {
     await fs.mkdir(DB_PATH, { recursive: true });
     
-    const files = ['restaurants.json', 'orders.json', 'reels.json'];
+    const files = ['restaurants.json', 'orders.json', 'reels.json', 'users.json'];
     for (const file of files) {
       const filePath = path.join(DB_PATH, file);
       try {
@@ -154,6 +154,12 @@ export const orderDB = {
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   },
   
+  async findByPhone(phone) {
+    const orders = await readData('orders.json');
+    return orders.filter(o => o.customerPhone === phone)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  },
+  
   async create(data) {
     const orders = await readData('orders.json');
     const newOrder = {
@@ -251,5 +257,49 @@ export const reelDB = {
     reels.splice(index, 1);
     await writeData('reels.json', reels);
     return deleted;
+  }
+};
+
+// User operations
+export const userDB = {
+  async findAll() {
+    return await readData('users.json');
+  },
+  
+  async findById(id) {
+    const users = await readData('users.json');
+    return users.find(u => u._id === id);
+  },
+  
+  async findByPhone(phone) {
+    const users = await readData('users.json');
+    return users.find(u => u.phone === phone);
+  },
+  
+  async create(data) {
+    const users = await readData('users.json');
+    const newUser = {
+      _id: generateId(),
+      ...data,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    users.push(newUser);
+    await writeData('users.json', newUser);
+    return newUser;
+  },
+  
+  async update(id, data) {
+    const users = await readData('users.json');
+    const index = users.findIndex(u => u._id === id);
+    if (index === -1) return null;
+    
+    users[index] = {
+      ...users[index],
+      ...data,
+      updatedAt: new Date().toISOString()
+    };
+    await writeData('users.json', users);
+    return users[index];
   }
 };

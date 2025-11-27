@@ -1,13 +1,22 @@
 import { Link } from 'react-router-dom';
-import { ShoppingCart, Film, Sun, Moon } from 'lucide-react';
+import { ShoppingCart, Film, Sun, Moon, User, History } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useTheme } from '../context/ThemeContext';
 import LanguageSelector from './LanguageSelector';
+import { useState, useEffect } from 'react';
 
 export default function Navbar() {
   const { cart } = useCart();
   const { theme, toggleTheme } = useTheme();
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      setUser(JSON.parse(userData));
+    }
+  }, []);
 
   return (
     <nav className="bg-white dark:bg-gray-900 shadow-lg sticky top-0 z-50 border-b border-gray-100 dark:border-gray-800 transition-colors">
@@ -46,6 +55,25 @@ export default function Navbar() {
                 </span>
               )}
             </Link>
+
+            {/* User Profile / Login */}
+            {user ? (
+              <Link 
+                to="/orders" 
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-primary dark:hover:text-primary transition-all duration-200"
+              >
+                <History size={24} className="text-primary" />
+                <span className="hidden md:inline font-medium">Orders</span>
+              </Link>
+            ) : (
+              <Link 
+                to="/login" 
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-primary dark:hover:text-primary transition-all duration-200"
+              >
+                <User size={24} className="text-primary" />
+                <span className="hidden md:inline font-medium">Login</span>
+              </Link>
+            )}
 
             {/* Theme Toggle */}
             <button
