@@ -83,8 +83,8 @@ export default function Settings() {
   };
 
   const presets = [
+    { name: 'Production', api: 'https://waitnot-restaurant-app.onrender.com/api', socket: 'https://waitnot-restaurant-app.onrender.com' },
     { name: 'Localhost', api: 'http://localhost:5000/api', socket: 'http://localhost:5000' },
-    { name: 'Network IP', api: 'http://172.27.96.222:5000/api', socket: 'http://172.27.96.222:5000' },
   ];
 
   return (

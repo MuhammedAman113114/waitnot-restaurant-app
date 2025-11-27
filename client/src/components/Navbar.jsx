@@ -1,14 +1,16 @@
 import { Link } from 'react-router-dom';
-import { ShoppingCart, Film, Settings } from 'lucide-react';
+import { ShoppingCart, Film, Sun, Moon } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { useTheme } from '../context/ThemeContext';
 import LanguageSelector from './LanguageSelector';
 
 export default function Navbar() {
   const { cart } = useCart();
+  const { theme, toggleTheme } = useTheme();
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <nav className="bg-white shadow-lg sticky top-0 z-50 border-b border-gray-100">
+    <nav className="bg-white dark:bg-gray-900 shadow-lg sticky top-0 z-50 border-b border-gray-100 dark:border-gray-800 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20 sm:h-24">
           {/* Logo */}
@@ -22,24 +24,10 @@ export default function Navbar() {
           
           {/* Right Side Navigation */}
           <div className="flex items-center gap-3 sm:gap-6">
-            {/* Language Selector */}
-            <div className="flex items-center">
-              <LanguageSelector />
-            </div>
-            
-            {/* Settings Link */}
-            <Link 
-              to="/settings" 
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-50 hover:text-primary transition-all duration-200"
-              title="Server Settings"
-            >
-              <Settings size={24} className="text-primary" />
-            </Link>
-            
             {/* Reels Link */}
             <Link 
               to="/reels" 
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-50 hover:text-primary transition-all duration-200"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-primary dark:hover:text-primary transition-all duration-200"
             >
               <Film size={24} className="text-primary" />
               <span className="hidden md:inline font-medium">Reels</span>
@@ -48,7 +36,7 @@ export default function Navbar() {
             {/* Cart Link */}
             <Link 
               to="/checkout" 
-              className="relative flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-50 hover:text-primary transition-all duration-200"
+              className="relative flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-primary dark:hover:text-primary transition-all duration-200"
             >
               <ShoppingCart size={24} className="text-primary" />
               <span className="hidden md:inline font-medium">Cart</span>
@@ -58,6 +46,24 @@ export default function Navbar() {
                 </span>
               )}
             </Link>
+
+            {/* Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-primary dark:hover:text-primary transition-all duration-200"
+              title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+            >
+              {theme === 'light' ? (
+                <Moon size={24} className="text-primary" />
+              ) : (
+                <Sun size={24} className="text-primary" />
+              )}
+            </button>
+            
+            {/* Language Selector */}
+            <div className="flex items-center">
+              <LanguageSelector />
+            </div>
           </div>
         </div>
       </div>

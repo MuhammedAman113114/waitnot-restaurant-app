@@ -8,7 +8,7 @@ import axios from 'axios'
 import { API_URL } from './config'
 
 // Configure axios base URL - can be overridden in Settings
-const savedApiUrl = localStorage.getItem('apiUrl') || 'http://172.27.96.222:5000/api'
+const savedApiUrl = localStorage.getItem('apiUrl') || 'https://waitnot-restaurant-app.onrender.com/api'
 axios.defaults.baseURL = savedApiUrl.replace('/api', '')
 axios.defaults.timeout = 10000
 
