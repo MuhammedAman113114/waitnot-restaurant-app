@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">WaitNot</string>
+    <string name="title_activity_main">WaitNot</string>
+    <string name="package_name">com.waitnot.app</string>
+    <string name="custom_url_scheme">com.waitnot.app</string>
+</resources>

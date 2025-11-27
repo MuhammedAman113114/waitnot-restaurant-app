@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WaitNot Connection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #EF4444;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #DC2626;
+        }
+        .result {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success { color: #10B981; }
+        .error { color: #EF4444; }
+        .info { color: #3B82F6; }
+    </style>
+</head>
+<body>
+    <h1>🔍 WaitNot Connection Test</h1>
+    
+    <div class="test-box">
+        <h2>Test 1: Fetch API</h2>
+        <button onclick="testFetch()">Test with Fetch</button>
+        <div id="fetch-result" class="result"></div>
+    </div>
+
+    <div class="test-box">
+        <h2>Test 2: XMLHttpRequest</h2>
+        <button onclick="testXHR()">Test with XHR</button>
+        <div id="xhr-result" class="result"></div>
+    </div>
+
+    <div class="test-box">
+        <h2>Test 3: Axios (if available)</h2>
+        <button onclick="testAxios()">Test with Axios</button>
+        <div id="axios-result" class="result"></div>
+    </div>
+
+    <div class="test-box">
+        <h2>Environment Info</h2>
+        <div id="env-info" class="result info"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        const API_URL = 'http://172.27.96.100:5000/api/restaurants';
+        
+        // Show environment info
+        document.getElementById('env-info').textContent = 
+            `User Agent: ${navigator.userAgent}\n` +
+            `Platform: ${navigator.platform}\n` +
+            `Online: ${navigator.onLine}\n` +
+            `URL: ${window.location.href}\n` +
+            `Testing API: ${API_URL}`;
+
+        async function testFetch() {
+            const result = document.getElementById('fetch-result');
+            result.textContent = '⏳ Testing...';
+            result.className = 'result info';
+            
+            try {
+                console.log('Fetch: Starting request to', API_URL);
+                const startTime = Date.now();
+                
+                const response = await fetch(API_URL, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const duration = Date.now() - startTime;
+                console.log('Fetch: Response received', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('Fetch: Data parsed', data.length, 'restaurants');
+                
+                result.className = 'result success';
+                result.textContent = 
+                    `✅ SUCCESS!\n\n` +
+                    `Status: ${response.status}\n` +
+                    `Duration: ${duration}ms\n` +
+                    `Restaurants: ${data.length}\n\n` +
+                    `First restaurant:\n${JSON.stringify(data[0], null, 2)}`;
+            } catch (error) {
+                console.error('Fetch: Error', error);
+                result.className = 'result error';
+                result.textContent = 
+                    `❌ ERROR!\n\n` +
+                    `Message: ${error.message}\n` +
+                    `Type: ${error.name}\n\n` +
+                    `This means: ${getDiagnosis(error)}`;
+            }
+        }
+
+        function testXHR() {
+            const result = document.getElementById('xhr-result');
+            result.textContent = '⏳ Testing...';
+            result.className = 'result info';
+            
+            const xhr = new XMLHttpRequest();
+            const startTime = Date.now();
+            
+            xhr.onload = function() {
+                const duration = Date.now() - startTime;
+                console.log('XHR: Response received', xhr.status);
+                
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                        const data = JSON.parse(xhr.responseText);
+                        result.className = 'result success';
+                        result.textContent = 
+                            `✅ SUCCESS!\n\n` +
+                            `Status: ${xhr.status}\n` +
+                            `Duration: ${duration}ms\n` +
+                            `Restaurants: ${data.length}\n\n` +
+                            `Response preview:\n${xhr.responseText.substring(0, 200)}...`;
+                    } catch (e) {
+                        result.className = 'result error';
+                        result.textContent = `❌ Parse Error: ${e.message}`;
+                    }
+                } else {
+                    result.className = 'result error';
+                    result.textContent = `❌ HTTP Error: ${xhr.status} ${xhr.statusText}`;
+                }
+            };
+            
+            xhr.onerror = function() {
+                console.error('XHR: Network error');
+                result.className = 'result error';
+                result.textContent = 
+                    `❌ NETWORK ERROR!\n\n` +
+                    `This usually means:\n` +
+                    `- Server is not accessible\n` +
+                    `- CORS is blocking the request\n` +
+                    `- Network security policy blocking HTTP\n` +
+                    `- Wrong IP address or port`;
+            };
+            
+            xhr.ontimeout = function() {
+                result.className = 'result error';
+                result.textContent = `❌ TIMEOUT! Server took too long to respond.`;
+            };
+            
+            console.log('XHR: Starting request to', API_URL);
+            xhr.open('GET', API_URL);
+            xhr.timeout = 10000;
+            xhr.send();
+        }
+
+        async function testAxios() {
+            const result = document.getElementById('axios-result');
+            result.textContent = '⏳ Testing...';
+            result.className = 'result info';
+            
+            if (typeof axios === 'undefined') {
+                result.className = 'result error';
+                result.textContent = '❌ Axios not loaded';
+                return;
+            }
+            
+            try {
+                console.log('Axios: Starting request to', API_URL);
+                const startTime = Date.now();
+                
+                const response = await axios.get(API_URL, {
+                    timeout: 10000
+                });
+                
+                const duration = Date.now() - startTime;
+                console.log('Axios: Response received', response.status);
+                
+                result.className = 'result success';
+                result.textContent = 
+                    `✅ SUCCESS!\n\n` +
+                    `Status: ${response.status}\n` +
+                    `Duration: ${duration}ms\n` +
+                    `Restaurants: ${response.data.length}\n\n` +
+                    `Headers:\n${JSON.stringify(response.headers, null, 2)}`;
+            } catch (error) {
+                console.error('Axios: Error', error);
+                result.className = 'result error';
+                result.textContent = 
+                    `❌ ERROR!\n\n` +
+                    `Message: ${error.message}\n` +
+                    `Code: ${error.code || 'N/A'}\n` +
+                    `Response: ${error.response ? error.response.status : 'No response'}\n\n` +
+                    `Diagnosis: ${getDiagnosis(error)}`;
+            }
+        }
+
+        function getDiagnosis(error) {
+            const msg = error.message.toLowerCase();
+            
+            if (msg.includes('network') || msg.includes('failed to fetch')) {
+                return 'Cannot reach server. Check:\n' +
+                       '1. Is server running?\n' +
+                       '2. Is IP address correct?\n' +
+                       '3. Are you on same WiFi?\n' +
+                       '4. Is firewall blocking?';
+            }
+            
+            if (msg.includes('cors')) {
+                return 'CORS policy blocking request.\n' +
+                       'Server needs to allow cross-origin requests.';
+            }
+            
+            if (msg.includes('timeout')) {
+                return 'Server is too slow or not responding.\n' +
+                       'Check if server is overloaded.';
+            }
+            
+            return 'Unknown error. Check console for details.';
+        }
+
+        // Auto-run tests on load
+        window.addEventListener('load', () => {
+            console.log('Page loaded, ready to test');
+        });
+    </script>
+</body>
+</html>
