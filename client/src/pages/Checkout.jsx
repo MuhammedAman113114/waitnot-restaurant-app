@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Trash2, Wallet, Smartphone } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import axios from 'axios';
+import { initiateRazorpayPayment } from '../components/RazorpayPayment';
 
 export default function Checkout() {
   const { cart, restaurant, updateQuantity, removeFromCart, clearCart, total } = useCart();
@@ -30,50 +31,45 @@ export default function Checkout() {
         return;
       }
       
-      // If UPI payment, redirect to UPI app
+      // If UPI/Online payment, use Razorpay
       if (formData.paymentMethod === 'upi') {
-        if (!restaurant?.paymentSettings?.upiId) {
-          alert('Restaurant UPI not configured. Please contact restaurant or choose Cash on Delivery.');
-          return;
-        }
-        
-        // Create UPI payment link
-        const upiId = restaurant.paymentSettings.upiId;
-        const upiName = restaurant.paymentSettings.upiName || restaurant.name;
-        const amount = finalTotal.toFixed(2);
-        const note = `Order from ${restaurant.name}`;
-        
-        console.log('UPI Payment Details:', { upiId, upiName, amount, note });
-        
-        // UPI deep link format
-        const upiUrl = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(note)}`;
-        
-        console.log('UPI URL:', upiUrl);
-        
-        // Try to open UPI app
-        window.location.href = upiUrl;
-        
-        // Wait a bit then create order with pending payment
-        setTimeout(async () => {
-          const orderData = {
-            restaurantId: restaurant._id,
-            items: cart.map(item => ({
-              menuItemId: item._id,
-              name: item.name,
-              price: item.price,
-              quantity: item.quantity
-            })),
-            totalAmount: finalTotal,
-            orderType: 'delivery',
-            ...formData,
-            paymentStatus: 'pending'
-          };
+        initiateRazorpayPayment({
+          amount: finalTotal,
+          name: restaurant.name,
+          description: `Order from ${restaurant.name}`,
+          customerName: formData.customerName,
+          customerPhone: formData.customerPhone,
+          onSuccess: async (response) => {
+            console.log('Payment successful:', response);
+            
+            // Create order with paid status
+            const orderData = {
+              restaurantId: restaurant._id,
+              items: cart.map(item => ({
+                menuItemId: item._id,
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity
+              })),
+              totalAmount: finalTotal,
+              orderType: 'delivery',
+              ...formData,
+              paymentStatus: 'paid',
+              paymentMethod: 'razorpay',
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpayOrderId: response.razorpay_order_id
+            };
 
-          await axios.post('/api/orders', orderData);
-          alert('Order placed! Please complete UPI payment.');
-          clearCart();
-          navigate('/');
-        }, 2000);
+            await axios.post('/api/orders', orderData);
+            alert('Order placed successfully! Payment confirmed.');
+            clearCart();
+            navigate('/');
+          },
+          onFailure: (error) => {
+            console.error('Payment failed:', error);
+            alert('Payment failed or cancelled. Please try again.');
+          }
+        });
       } else {
         // Cash on Delivery
         const orderData = {

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Plus, Minus, Wallet, Smartphone, CheckCircle } from 'lucide-react';
 import axios from 'axios';
+import { initiateRazorpayPayment } from '../components/RazorpayPayment';
 
 export default function QROrder() {
   const { restaurantId, tableNumber } = useParams();
@@ -111,66 +112,50 @@ export default function QROrder() {
         return;
       }
       
-      // If UPI payment, redirect to UPI app
+      // If UPI/Online payment, use Razorpay
       if (paymentMethod === 'upi') {
-        if (!restaurant?.paymentSettings?.upiId) {
-          alert('Restaurant UPI not configured. Please contact restaurant or choose Cash Payment.');
-          return;
-        }
-        
-        // Create UPI payment link
-        const upiId = restaurant.paymentSettings.upiId;
-        const upiName = restaurant.paymentSettings.upiName || restaurant.name;
-        const amount = total.toString();
-        const note = `Table ${tableNumber} - ${restaurant.name}`;
-        
-        console.log('UPI Payment Details:', { 
-          upiId, 
-          upiName, 
-          amount, 
-          amountType: typeof amount,
-          note,
-          total 
-        });
-        
-        // UPI deep link format - amount should be a plain number string
-        const upiUrl = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(note)}`;
-        
-        console.log('Full UPI URL:', upiUrl);
-        
-        // Show alert with amount before redirecting
-        alert(`Redirecting to UPI payment for ₹${amount}\n\nUPI ID: ${upiId}\nAmount: ${amount}`);
-        
-        // Try to open UPI app
-        window.location.href = upiUrl;
-        
-        // Wait a bit then create order with pending payment
-        setTimeout(async () => {
-          const orderData = {
-            restaurantId,
-            tableNumber: parseInt(tableNumber),
-            items: cart.map(item => ({
-              menuItemId: item._id,
-              name: item.name,
-              price: item.price,
-              quantity: item.quantity
-            })),
-            totalAmount: total,
-            orderType: 'dine-in',
-            customerName: customerInfo.name,
-            customerPhone: customerInfo.phone,
-            paymentStatus: 'pending',
-            paymentMethod
-          };
+        initiateRazorpayPayment({
+          amount: total,
+          name: restaurant.name,
+          description: `Table ${tableNumber} - ${restaurant.name}`,
+          customerName: customerInfo.name,
+          customerPhone: customerInfo.phone,
+          onSuccess: async (response) => {
+            console.log('Payment successful:', response);
+            
+            // Create order with paid status
+            const orderData = {
+              restaurantId,
+              tableNumber: parseInt(tableNumber),
+              items: cart.map(item => ({
+                menuItemId: item._id,
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity
+              })),
+              totalAmount: total,
+              orderType: 'dine-in',
+              customerName: customerInfo.name,
+              customerPhone: customerInfo.phone,
+              paymentStatus: 'paid',
+              paymentMethod: 'razorpay',
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpayOrderId: response.razorpay_order_id
+            };
 
-          await axios.post('/api/orders', orderData);
-          setOrderPlaced(true);
-          setTimeout(() => {
-            setOrderPlaced(false);
-            setCart([]);
-            setShowCheckout(false);
-          }, 2000);
-        }, 2000);
+            await axios.post('/api/orders', orderData);
+            setOrderPlaced(true);
+            setTimeout(() => {
+              setOrderPlaced(false);
+              setCart([]);
+              setShowCheckout(false);
+            }, 2000);
+          },
+          onFailure: (error) => {
+            console.error('Payment failed:', error);
+            alert('Payment failed or cancelled. Please try again.');
+          }
+        });
       } else {
         // Cash Payment
         const orderData = {

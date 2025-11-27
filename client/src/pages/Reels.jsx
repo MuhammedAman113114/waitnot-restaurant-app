@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Heart, ShoppingBag, X, Plus, Minus, Wallet, Smartphone, MapPin, Volume2, VolumeX } from 'lucide-react';
 import axios from 'axios';
+import { initiateRazorpayPayment } from '../components/RazorpayPayment';
 
 export default function Reels() {
   const [reels, setReels] = useState([]);
@@ -137,49 +138,44 @@ export default function Reels() {
         return;
       }
       
-      // If UPI payment, redirect to UPI app
+      // If UPI/Online payment, use Razorpay
       if (orderForm.paymentMethod === 'upi') {
-        if (!selectedReel?.restaurantId?.paymentSettings?.upiId) {
-          alert('Restaurant UPI not configured. Please contact restaurant or choose Cash on Delivery.');
-          return;
-        }
-        
-        // Create UPI payment link
-        const upiId = selectedReel.restaurantId.paymentSettings.upiId;
-        const upiName = selectedReel.restaurantId.paymentSettings.upiName || selectedReel.restaurantId.name;
-        const amount = finalTotal.toFixed(2);
-        const note = `Order: ${selectedReel.dishName} from ${selectedReel.restaurantId.name}`;
-        
-        console.log('UPI Payment Details:', { upiId, upiName, amount, note });
-        
-        // UPI deep link format
-        const upiUrl = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(note)}`;
-        
-        console.log('UPI URL:', upiUrl);
-        
-        // Try to open UPI app
-        window.location.href = upiUrl;
-        
-        // Wait a bit then create order with pending payment
-        setTimeout(async () => {
-          const orderData = {
-            restaurantId: selectedReel.restaurantId._id,
-            items: [{
-              menuItemId: selectedReel._id,
-              name: selectedReel.dishName,
-              price: selectedReel.price,
-              quantity: quantity
-            }],
-            totalAmount: finalTotal,
-            orderType: 'delivery',
-            ...orderForm,
-            paymentStatus: 'pending'
-          };
+        initiateRazorpayPayment({
+          amount: finalTotal,
+          name: selectedReel.restaurantId.name,
+          description: `Order: ${selectedReel.dishName}`,
+          customerName: orderForm.customerName,
+          customerPhone: orderForm.customerPhone,
+          onSuccess: async (response) => {
+            console.log('Payment successful:', response);
+            
+            // Create order with paid status
+            const orderData = {
+              restaurantId: selectedReel.restaurantId._id,
+              items: [{
+                menuItemId: selectedReel._id,
+                name: selectedReel.dishName,
+                price: selectedReel.price,
+                quantity: quantity
+              }],
+              totalAmount: finalTotal,
+              orderType: 'delivery',
+              ...orderForm,
+              paymentStatus: 'paid',
+              paymentMethod: 'razorpay',
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpayOrderId: response.razorpay_order_id
+            };
 
-          await axios.post('/api/orders', orderData);
-          alert('Order placed! Please complete UPI payment. 🎉');
-          closeOrderModal();
-        }, 2000);
+            await axios.post('/api/orders', orderData);
+            alert('Order placed successfully! Payment confirmed. 🎉');
+            closeOrderModal();
+          },
+          onFailure: (error) => {
+            console.error('Payment failed:', error);
+            alert('Payment failed or cancelled. Please try again.');
+          }
+        });
       } else {
         // Cash on Delivery
         const orderData = {
