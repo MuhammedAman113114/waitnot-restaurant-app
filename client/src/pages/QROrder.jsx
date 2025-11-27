@@ -97,11 +97,12 @@ export default function QROrder() {
         return;
       }
       
-      // Calculate total
-      const orderTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      // Use the total that's already calculated
+      console.log('Cart items:', cart);
+      console.log('Total amount:', total);
       
-      if (orderTotal <= 0) {
-        alert('Cart is empty or invalid');
+      if (!total || total <= 0) {
+        alert('Cart is empty or invalid. Total: ₹' + total);
         return;
       }
       
@@ -115,15 +116,25 @@ export default function QROrder() {
         // Create UPI payment link
         const upiId = restaurant.paymentSettings.upiId;
         const upiName = restaurant.paymentSettings.upiName || restaurant.name;
-        const amount = orderTotal.toFixed(2);
+        const amount = total.toString();
         const note = `Table ${tableNumber} - ${restaurant.name}`;
         
-        console.log('UPI Payment Details:', { upiId, upiName, amount, note });
+        console.log('UPI Payment Details:', { 
+          upiId, 
+          upiName, 
+          amount, 
+          amountType: typeof amount,
+          note,
+          total 
+        });
         
-        // UPI deep link format
+        // UPI deep link format - amount should be a plain number string
         const upiUrl = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(note)}`;
         
-        console.log('UPI URL:', upiUrl);
+        console.log('Full UPI URL:', upiUrl);
+        
+        // Show alert with amount before redirecting
+        alert(`Redirecting to UPI payment for ₹${amount}`);
         
         // Try to open UPI app
         window.location.href = upiUrl;
@@ -139,7 +150,7 @@ export default function QROrder() {
               price: item.price,
               quantity: item.quantity
             })),
-            totalAmount: orderTotal,
+            totalAmount: total,
             orderType: 'dine-in',
             customerName: customerInfo.name,
             customerPhone: customerInfo.phone,
@@ -166,7 +177,7 @@ export default function QROrder() {
             price: item.price,
             quantity: item.quantity
           })),
-          totalAmount: orderTotal,
+          totalAmount: total,
           orderType: 'dine-in',
           customerName: customerInfo.name,
           customerPhone: customerInfo.phone,
