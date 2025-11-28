@@ -126,7 +126,7 @@ const QRScanner = ({ onClose }) => {
       </div>
 
       {/* Instructions */}
-      <div className="bg-gradient-to-t from-gray-900 via-gray-900 to-transparent text-white p-8 text-center">
+      <div className="bg-gradient-to-t from-gray-900 via-gray-900 to-transparent text-white p-8 pb-24 text-center">
         <div className="flex items-center justify-center mb-3">
           <ScanLine className="text-red-500 animate-pulse" size={40} />
         </div>
