@@ -19,6 +19,7 @@ export default function Reels() {
   const [showPayment, setShowPayment] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const containerRef = useRef(null);
   const videoRefs = useRef({});
   const navigate = useNavigate();
@@ -79,10 +80,13 @@ export default function Reels() {
 
   const fetchReels = async () => {
     try {
+      setIsLoading(true);
       const { data } = await axios.get('/api/reels');
       setReels(data);
     } catch (error) {
       console.error('Error fetching reels:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -204,6 +208,33 @@ export default function Reels() {
 
   return (
     <div className="fixed inset-0 w-full h-full bg-black overflow-hidden">
+      {/* Loading Animation */}
+      {isLoading && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-br from-gray-900 via-black to-gray-900">
+          <div className="relative text-center">
+            {/* Animated Food Icons Carousel */}
+            <div className="text-8xl mb-6">
+              <div className="animate-bounce inline-block">🍔</div>
+            </div>
+            
+            {/* Pulsing Circle Loader */}
+            <div className="relative w-24 h-24 mx-auto mb-6">
+              <div className="absolute inset-0 rounded-full border-4 border-primary opacity-20"></div>
+              <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+              <div className="absolute inset-3 rounded-full border-4 border-red-400 border-t-transparent animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1s' }}></div>
+            </div>
+            
+            {/* Loading Text with Gradient */}
+            <p className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-red-400 to-primary text-2xl font-bold animate-pulse">
+              Loading Delicious Reels...
+            </p>
+            
+            {/* Subtitle */}
+            <p className="text-gray-400 text-sm mt-2">Get ready for amazing food content</p>
+          </div>
+        </div>
+      )}
+
       {/* Top Controls */}
       <div className="absolute top-4 left-4 right-4 z-50 flex items-center justify-between pointer-events-none">
         <button
@@ -211,7 +242,7 @@ export default function Reels() {
             e.stopPropagation();
             setIsMuted(!isMuted);
           }}
-          className="bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 pointer-events-auto"
+          className="bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 pointer-events-auto transition-all"
         >
           {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
         </button>
@@ -221,7 +252,7 @@ export default function Reels() {
             e.stopPropagation();
             navigate('/');
           }}
-          className="bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 pointer-events-auto"
+          className="bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 pointer-events-auto transition-all"
         >
           <X size={24} />
         </button>
@@ -280,12 +311,12 @@ export default function Reels() {
             <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent pointer-events-none" />
 
             {/* Bottom Info */}
-            <div className="absolute bottom-0 left-0 right-0 p-6 text-white pointer-events-none">
-              <h2 className="text-2xl font-bold mb-2">{reel.dishName}</h2>
-              <p className="text-3xl font-bold text-accent mb-2">₹{reel.price}</p>
+            <div className="absolute bottom-0 left-0 right-0 p-6 pb-24 text-white pointer-events-none">
+              <h2 className="text-2xl font-bold mb-2 drop-shadow-lg">{reel.dishName}</h2>
+              <p className="text-3xl font-bold text-primary mb-2 drop-shadow-lg">₹{reel.price}</p>
               
               {reel.restaurantId && (
-                <p className="text-lg mb-4">
+                <p className="text-lg mb-4 drop-shadow-lg">
                   {reel.restaurantId.name} • ⭐ {reel.restaurantId.rating}
                 </p>
               )}
@@ -295,45 +326,47 @@ export default function Reels() {
                   e.stopPropagation();
                   openOrderModal(reel);
                 }}
-                className="bg-primary text-white px-8 py-3 rounded-full font-bold hover:bg-red-600 transition-colors flex items-center gap-2 pointer-events-auto"
+                className="bg-primary text-white px-8 py-4 rounded-full font-bold hover:bg-red-600 transition-all transform hover:scale-105 flex items-center gap-2 pointer-events-auto shadow-2xl"
               >
-                <ShoppingBag size={20} />
+                <ShoppingBag size={22} />
                 Order Now
               </button>
             </div>
 
             {/* Right Side Actions */}
-            <div className="absolute right-4 bottom-32 flex flex-col gap-6 pointer-events-none">
+            <div className="absolute right-4 bottom-40 flex flex-col gap-6 pointer-events-none">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   handleLike(reel._id);
                 }}
-                className="flex flex-col items-center text-white pointer-events-auto"
+                className="flex flex-col items-center text-white pointer-events-auto transition-transform hover:scale-110"
               >
-                <div className="bg-black bg-opacity-50 p-3 rounded-full hover:bg-opacity-70">
+                <div className="bg-black bg-opacity-50 p-3 rounded-full hover:bg-opacity-70 backdrop-blur-sm">
                   <Heart size={28} fill="white" />
                 </div>
-                <span className="text-sm mt-1">{reel.likes}</span>
+                <span className="text-sm mt-1 font-semibold drop-shadow-lg">{reel.likes}</span>
               </button>
 
               <div className="flex flex-col items-center text-white">
-                <div className="bg-black bg-opacity-50 p-3 rounded-full">
+                <div className="bg-black bg-opacity-50 p-3 rounded-full backdrop-blur-sm">
                   <span className="text-xl">👁️</span>
                 </div>
-                <span className="text-sm mt-1">{reel.views}</span>
+                <span className="text-sm mt-1 font-semibold drop-shadow-lg">{reel.views}</span>
               </div>
             </div>
           </div>
         ))}
 
-        {reels.length === 0 && (
-          <div className="h-screen flex items-center justify-center text-white">
-            <div className="text-center">
-              <p className="text-2xl mb-4">No reels available</p>
+        {reels.length === 0 && !isLoading && (
+          <div className="h-screen flex items-center justify-center text-white bg-gradient-to-br from-gray-900 via-black to-gray-900">
+            <div className="text-center px-6">
+              <div className="text-7xl mb-6 animate-bounce">🎬</div>
+              <p className="text-3xl font-bold mb-2">No Reels Available</p>
+              <p className="text-gray-400 mb-8 text-lg">Check back later for delicious content!</p>
               <button
                 onClick={() => navigate('/')}
-                className="bg-primary px-6 py-3 rounded-lg hover:bg-red-600"
+                className="bg-primary px-8 py-4 rounded-full hover:bg-red-600 font-bold text-lg transition-all transform hover:scale-105 shadow-2xl"
               >
                 Go Home
               </button>
