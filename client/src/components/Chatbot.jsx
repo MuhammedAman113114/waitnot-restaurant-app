@@ -1,13 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { MessageCircle, X, Send } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useCart } from '../context/CartContext';
 
 export default function Chatbot() {
+  const navigate = useNavigate();
+  const { addToCart } = useCart();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
     {
       id: 1,
-      text: "Hi! I'm your intelligent food assistant. I can analyze our restaurants and recommend the best options for you. Ask me about:\n• Top rated restaurants\n• Best food items\n• Popular cuisines\n• Restaurant recommendations\n• Menu item ratings",
+      text: "Hi! I'm your intelligent food assistant. I can analyze our restaurants and recommend the best options for you. Ask me about:\n• Top rated restaurants\n• Best food items\n• Popular cuisines\n• Restaurant recommendations\n• Menu item ratings\n\nYou can also say 'order [food name]' and I'll add it to your cart!",
       sender: 'bot',
       timestamp: new Date()
     }
@@ -75,54 +79,26 @@ export default function Chatbot() {
 
   const placeAutomaticOrder = async (item, restaurants) => {
     try {
-      // Check if user is logged in
-      const token = localStorage.getItem('userToken');
-      const userData = localStorage.getItem('user');
-
-      if (!token || !userData) {
-        return "❌ Please log in first to place an order. You can log in from the profile section.";
-      }
-
-      const user = JSON.parse(userData);
-
-      // Check if user has address
-      if (!user.address) {
-        return "❌ Please add your delivery address in your profile before placing an order.";
-      }
-
-      // Check if we have restaurant ID
-      if (!item.restaurantId) {
-        return "❌ Sorry, I couldn't find the restaurant information for this item.";
-      }
-
-      // Create order payload
-      const orderData = {
-        items: [{
-          name: item.name,
-          price: item.price,
-          quantity: 1
-        }],
-        totalAmount: item.price,
-        deliveryAddress: user.address,
-        paymentMethod: 'cash',
-        paymentStatus: 'pending',
-        orderType: 'delivery',
-        restaurantId: item.restaurantId
-      };
-
-      // Place the order
-      const response = await axios.post('/api/users/orders', orderData, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+      // Add item to cart
+      addToCart({
+        id: item._id || `${item.restaurantId}-${item.name}`,
+        name: item.name,
+        price: item.price,
+        restaurantId: item.restaurantId,
+        restaurantName: item.restaurantName,
+        quantity: 1
       });
 
-      if (response.data) {
-        return `✅ Order Placed Successfully!\n\n📦 Order Details:\n• ${item.name}\n• ⭐ ${item.rating}/5\n• 💰 ₹${item.price}\n• 📍 ${item.restaurantName}\n\n👤 Delivery To:\n• ${user.name}\n• 📞 ${user.phone}\n• 🏠 ${user.address}\n\n💳 Payment: Cash on Delivery\n\n🚚 Your order will be delivered soon! You can track it in the Order History section.`;
-      }
+      // Close chatbot and navigate to checkout after a short delay
+      setTimeout(() => {
+        setIsOpen(false);
+        navigate('/checkout');
+      }, 2000);
+
+      return `✅ Added to Cart!\n\n📦 Item Details:\n• ${item.name}\n• ⭐ ${item.rating || 'N/A'}/5\n• 💰 ₹${item.price}\n• 📍 ${item.restaurantName}\n\n🛒 Taking you to checkout...\n\nYou can review your order and complete the purchase there!`;
     } catch (error) {
-      console.error('Order placement error:', error);
-      return `❌ Sorry, I couldn't place your order. ${error.response?.data?.message || 'Please try again or place the order manually.'}`;
+      console.error('Add to cart error:', error);
+      return `❌ Sorry, I couldn't add this item to your cart. Please try adding it manually from the restaurant menu.`;
     }
   };
 
