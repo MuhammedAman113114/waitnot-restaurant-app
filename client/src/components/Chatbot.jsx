@@ -73,6 +73,60 @@ export default function Chatbot() {
     }, 800);
   };
 
+  const placeAutomaticOrder = async (item, restaurants) => {
+    try {
+      // Check if user is logged in
+      const token = localStorage.getItem('userToken');
+      const userData = localStorage.getItem('user');
+
+      if (!token || !userData) {
+        return "❌ Please log in first to place an order. You can log in from the profile section.";
+      }
+
+      const user = JSON.parse(userData);
+
+      // Check if user has address
+      if (!user.address) {
+        return "❌ Please add your delivery address in your profile before placing an order.";
+      }
+
+      // Find the restaurant for this item
+      const restaurant = restaurants.find(r => r.name === item.restaurantName);
+      if (!restaurant) {
+        return "❌ Sorry, I couldn't find the restaurant for this item.";
+      }
+
+      // Create order payload
+      const orderData = {
+        items: [{
+          name: item.name,
+          price: item.price,
+          quantity: 1
+        }],
+        totalAmount: item.price,
+        deliveryAddress: user.address,
+        paymentMethod: 'cash',
+        paymentStatus: 'pending',
+        orderType: 'delivery',
+        restaurantId: restaurant._id
+      };
+
+      // Place the order
+      const response = await axios.post('/api/users/orders', orderData, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (response.data) {
+        return `✅ Order Placed Successfully!\n\n📦 Order Details:\n• ${item.name}\n• ⭐ ${item.rating}/5\n• 💰 ₹${item.price}\n• 📍 ${item.restaurantName}\n\n👤 Delivery To:\n• ${user.name}\n• 📞 ${user.phone}\n• 🏠 ${user.address}\n\n💳 Payment: Cash on Delivery\n\n🚚 Your order will be delivered soon! You can track it in the Order History section.`;
+      }
+    } catch (error) {
+      console.error('Order placement error:', error);
+      return `❌ Sorry, I couldn't place your order. ${error.response?.data?.message || 'Please try again or place the order manually.'}`;
+    }
+  };
+
   const getBotResponse = async (message) => {
     const lowerMessage = message.toLowerCase();
 
@@ -92,6 +146,10 @@ export default function Chatbot() {
   };
 
   const processMessage = async (lowerMessage, restaurants, reviews) => {
+    // Check if user wants to order something
+    const orderKeywords = ['order', 'buy', 'get me', 'i want', 'place order', 'order for me'];
+    const wantsToOrder = orderKeywords.some(keyword => lowerMessage.includes(keyword));
+
     // Search for specific food items by name (e.g., "best chocolate shake", "where can I get pizza")
     const foodKeywords = ['shake', 'pizza', 'burger', 'biryani', 'pasta', 'sandwich', 'coffee', 'tea', 'cake', 'ice cream', 'noodles', 'rice', 'chicken', 'paneer', 'dal', 'roti', 'naan', 'samosa', 'dosa', 'idli', 'vada'];
     const hasSpecificFood = foodKeywords.some(keyword => lowerMessage.includes(keyword));
@@ -119,22 +177,41 @@ export default function Chatbot() {
       });
 
       if (matchingItems.length > 0) {
-        // Sort by rating
-        const sortedItems = matchingItems.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-        const topMatches = sortedItems.slice(0, 5);
+        // Sort by rating (highest first), then by restaurant rating
+        const sortedItems = matchingItems.sort((a, b) => {
+          const ratingDiff = (b.rating || 0) - (a.rating || 0);
+          if (ratingDiff !== 0) return ratingDiff;
+          return (b.restaurantRating || 0) - (a.restaurantRating || 0);
+        });
+        
+        // Get top 3 best-rated items
+        const topMatches = sortedItems.slice(0, 3);
 
-        let response = `🍽️ Found ${matchingItems.length} item(s) matching your search:\n\n`;
+        // If user wants to order, automatically place the order for the best item
+        if (wantsToOrder && topMatches.length > 0) {
+          return await placeAutomaticOrder(topMatches[0], restaurants);
+        }
+
+        let response = `🏆 Top 3 Best Recommendations:\n\n`;
         topMatches.forEach((item, i) => {
           response += `${i + 1}. ${item.name}\n`;
-          if (item.rating) response += `   ⭐ ${item.rating}/5\n`;
+          if (item.rating) {
+            response += `   ⭐ ${item.rating}/5 - Highly Rated!\n`;
+          }
           response += `   💰 ₹${item.price}\n`;
-          response += `   📍 ${item.restaurantName}\n`;
+          response += `   📍 ${item.restaurantName}`;
+          if (item.restaurantRating) {
+            response += ` (${item.restaurantRating}⭐)`;
+          }
+          response += `\n`;
           if (item.description) response += `   📝 ${item.description}\n`;
           response += `\n`;
         });
         
-        if (matchingItems.length > 5) {
-          response += `...and ${matchingItems.length - 5} more options available!`;
+        if (matchingItems.length > 3) {
+          response += `💡 ${matchingItems.length - 3} more option(s) available. These are our top picks based on ratings and customer feedback!`;
+        } else {
+          response += `✨ These are the best options based on ratings and customer feedback!`;
         }
         
         return response;
