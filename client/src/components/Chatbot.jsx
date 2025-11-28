@@ -84,15 +84,30 @@ export default function Chatbot() {
 
   const confirmAndPlaceOrder = async (item, quantity, preference) => {
     try {
-      // Add item to cart with specified quantity
-      addToCart({
-        id: item._id || `${item.restaurantId}-${item.name}`,
+      // Find the restaurant info
+      const restaurant = restaurantsData.find(r => r._id === item.restaurantId);
+      
+      if (!restaurant) {
+        return `❌ Sorry, I couldn't find the restaurant information. Please try again.`;
+      }
+
+      // Create the item object with proper structure
+      const cartItem = {
+        _id: item._id || `${item.restaurantId}-${item.name}`,
         name: item.name,
         price: item.price,
-        restaurantId: item.restaurantId,
-        restaurantName: item.restaurantName,
-        quantity: quantity
-      });
+        quantity: 1 // Start with 1, we'll add multiple times for the quantity
+      };
+
+      const restaurantInfo = {
+        _id: restaurant._id,
+        name: restaurant.name
+      };
+
+      // Add item to cart the specified number of times to get the right quantity
+      for (let i = 0; i < quantity; i++) {
+        addToCart(cartItem, restaurantInfo);
+      }
 
       // Clear pending order
       setPendingOrder(null);
@@ -230,11 +245,16 @@ export default function Chatbot() {
       });
 
       // Find items that match the search query
+      // Remove veg/non-veg keywords from search to avoid false matches
+      const searchTerms = lowerMessage
+        .replace(/\b(veg|non-veg|non veg|nonveg|vegetarian|non-vegetarian)\b/g, '')
+        .trim();
+      
       const matchingItems = allMenuItems.filter(item => {
         const itemName = item.name.toLowerCase();
         // Check if any word in the message matches the item name
-        return lowerMessage.split(' ').some(word => 
-          itemName.includes(word) || word.includes(itemName.split(' ')[0])
+        return searchTerms.split(' ').some(word => 
+          word.length > 2 && (itemName.includes(word) || word.includes(itemName.split(' ')[0]))
         );
       });
 
