@@ -14,6 +14,7 @@ import Settings from './pages/Settings';
 
 import UserLogin from './pages/UserLogin';
 import OrderHistory from './pages/OrderHistory';
+import Profile from './pages/Profile';
 import { CartProvider } from './context/CartContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { NetworkProvider, useNetwork } from './context/NetworkContext';
@@ -46,6 +47,7 @@ function AppContent() {
 
             <Route path="/login" element={<><Navbar /><UserLogin /></>} />
             <Route path="/orders" element={<><Navbar /><OrderHistory /><BottomNav /></>} />
+            <Route path="/profile" element={<><Navbar /><Profile /><BottomNav /></>} />
             <Route path="/settings" element={<><Navbar /><Settings /><BottomNav /></>} />
           </Routes>
         </div>

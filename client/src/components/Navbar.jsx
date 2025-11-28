@@ -76,6 +76,15 @@ export default function Navbar() {
                     </div>
                     
                     <Link
+                      to="/profile"
+                      onClick={() => setShowDropdown(false)}
+                      className="flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <User size={18} />
+                      <span>My Profile</span>
+                    </Link>
+                    
+                    <Link
                       to="/orders"
                       onClick={() => setShowDropdown(false)}
                       className="flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"

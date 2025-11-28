@@ -254,12 +254,84 @@ router.get('/profile', async (req, res) => {
 
     res.json({
       id: user._id,
+      username: user.username,
       phone: user.phone,
-      name: user.name
+      name: user.name,
+      address: user.address || ''
     });
   } catch (error) {
     console.error('Error getting profile:', error);
     res.status(401).json({ error: 'Invalid token' });
+  }
+});
+
+// Update user profile
+router.put('/profile', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret_key_here');
+    const user = await userDB.findById(decoded.userId);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const { name, phone, address, currentPassword, newPassword } = req.body;
+
+    // If changing password, verify current password
+    if (newPassword) {
+      if (!currentPassword) {
+        return res.status(400).json({ error: 'Current password is required' });
+      }
+
+      const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ error: 'Current password is incorrect' });
+      }
+
+      if (newPassword.length < 6) {
+        return res.status(400).json({ error: 'New password must be at least 6 characters' });
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await userDB.update(user._id, {
+        name,
+        phone,
+        address,
+        password: hashedPassword
+      });
+    } else {
+      // Update without password change
+      await userDB.update(user._id, {
+        name,
+        phone,
+        address
+      });
+    }
+
+    // Get updated user
+    const updatedUser = await userDB.findById(user._id);
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      user: {
+        id: updatedUser._id,
+        username: updatedUser.username,
+        name: updatedUser.name,
+        phone: updatedUser.phone,
+        address: updatedUser.address || ''
+      }
+    });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
