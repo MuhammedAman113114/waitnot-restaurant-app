@@ -22,6 +22,9 @@ export default function Chatbot() {
   const [restaurantsData, setRestaurantsData] = useState([]);
   const [reviewsData, setReviewsData] = useState([]);
   const [pendingOrder, setPendingOrder] = useState(null); // Store pending order for confirmation
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [orderQuantity, setOrderQuantity] = useState(1);
+  const [orderPreference, setOrderPreference] = useState('veg');
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -107,14 +110,13 @@ export default function Chatbot() {
   };
 
   const askForConfirmation = (item) => {
-    // Store the pending order
+    // Store the pending order and show modal
     setPendingOrder(item);
+    setShowOrderModal(true);
+    setOrderQuantity(1);
+    setOrderPreference(item.isVeg !== undefined ? (item.isVeg ? 'veg' : 'non-veg') : 'veg');
     
-    const vegNonVegInfo = item.isVeg !== undefined 
-      ? (item.isVeg ? '🟢 Veg' : '🔴 Non-Veg')
-      : '';
-
-    return `🍽️ Great choice! I found:\n\n${item.name}\n⭐ ${item.rating || 'N/A'}/5 | 💰 ₹${item.price}\n📍 ${item.restaurantName}\n${vegNonVegInfo}\n\nPlease confirm:\n1️⃣ How many would you like? (e.g., "1", "2", "3")\n2️⃣ ${item.isVeg === undefined ? 'Veg or Non-Veg preference?' : ''}\n\nJust reply with the quantity${item.isVeg === undefined ? ' and preference (e.g., "2 veg" or "1 non-veg")' : ' (e.g., "2")'} to proceed!`;
+    return `🍽️ Perfect! Opening order confirmation...`;
   };
 
   const getBotResponse = async (message) => {
@@ -136,35 +138,6 @@ export default function Chatbot() {
   };
 
   const processMessage = async (lowerMessage, restaurants, reviews) => {
-    // Check if there's a pending order waiting for confirmation
-    if (pendingOrder) {
-      // Parse quantity and preference from user response
-      const quantityMatch = lowerMessage.match(/(\d+)/);
-      const quantity = quantityMatch ? parseInt(quantityMatch[1]) : 1;
-      
-      let preference = '';
-      if (lowerMessage.includes('veg') && !lowerMessage.includes('non')) {
-        preference = 'Veg';
-      } else if (lowerMessage.includes('non-veg') || lowerMessage.includes('non veg') || lowerMessage.includes('nonveg')) {
-        preference = 'Non-Veg';
-      } else if (pendingOrder.isVeg !== undefined) {
-        preference = pendingOrder.isVeg ? 'Veg' : 'Non-Veg';
-      }
-
-      // Validate quantity
-      if (quantity < 1 || quantity > 10) {
-        return "Please specify a valid quantity between 1 and 10.";
-      }
-
-      // If item doesn't have veg/non-veg info and user didn't specify, ask again
-      if (pendingOrder.isVeg === undefined && !preference) {
-        return "Please specify if you want Veg or Non-Veg. Reply with:\n• 'veg' for vegetarian\n• 'non-veg' for non-vegetarian";
-      }
-
-      // Proceed with the order
-      return await confirmAndPlaceOrder(pendingOrder, quantity, preference);
-    }
-
     // Check if user wants to order something
     const orderKeywords = ['order', 'buy', 'get me', 'i want', 'place order', 'order for me'];
     const wantsToOrder = orderKeywords.some(keyword => lowerMessage.includes(keyword));
@@ -402,6 +375,117 @@ export default function Chatbot() {
         >
           <MessageCircle size={28} />
         </button>
+      )}
+
+      {/* Order Confirmation Modal */}
+      {showOrderModal && pendingOrder && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-gray-200 dark:border-gray-700">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-800 dark:text-white">Confirm Your Order</h3>
+              <button
+                onClick={() => {
+                  setShowOrderModal(false);
+                  setPendingOrder(null);
+                }}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+              >
+                <X size={20} className="text-gray-600 dark:text-gray-400" />
+              </button>
+            </div>
+
+            {/* Item Details */}
+            <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+              <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">{pendingOrder.name}</h4>
+              <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                <span className="flex items-center gap-1">
+                  ⭐ {pendingOrder.rating || 'N/A'}/5
+                </span>
+                <span>💰 ₹{pendingOrder.price}</span>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">📍 {pendingOrder.restaurantName}</p>
+            </div>
+
+            {/* Quantity Selector */}
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                Quantity
+              </label>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setOrderQuantity(Math.max(1, orderQuantity - 1))}
+                  className="w-10 h-10 flex items-center justify-center bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg font-bold text-gray-800 dark:text-white transition-colors"
+                >
+                  -
+                </button>
+                <span className="text-2xl font-bold text-gray-800 dark:text-white w-12 text-center">
+                  {orderQuantity}
+                </span>
+                <button
+                  onClick={() => setOrderQuantity(Math.min(10, orderQuantity + 1))}
+                  className="w-10 h-10 flex items-center justify-center bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg font-bold text-gray-800 dark:text-white transition-colors"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            {/* Veg/Non-Veg Selector */}
+            {pendingOrder.isVeg === undefined && (
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Preference
+                </label>
+                <select
+                  value={orderPreference}
+                  onChange={(e) => setOrderPreference(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
+                >
+                  <option value="veg">🟢 Vegetarian</option>
+                  <option value="non-veg">🔴 Non-Vegetarian</option>
+                </select>
+              </div>
+            )}
+
+            {/* Total Price */}
+            <div className="mb-6 p-4 bg-primary bg-opacity-10 rounded-lg">
+              <div className="flex justify-between items-center">
+                <span className="text-lg font-semibold text-gray-800 dark:text-white">Total:</span>
+                <span className="text-2xl font-bold text-primary">₹{pendingOrder.price * orderQuantity}</span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowOrderModal(false);
+                  setPendingOrder(null);
+                }}
+                className="flex-1 px-4 py-3 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white rounded-lg font-semibold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setShowOrderModal(false);
+                  const preference = orderPreference === 'veg' ? 'Veg' : 'Non-Veg';
+                  const response = await confirmAndPlaceOrder(pendingOrder, orderQuantity, preference);
+                  setMessages(prev => [...prev, {
+                    id: prev.length + 1,
+                    text: response,
+                    sender: 'bot',
+                    timestamp: new Date()
+                  }]);
+                }}
+                className="flex-1 px-4 py-3 bg-primary hover:bg-red-600 text-white rounded-lg font-semibold transition-colors"
+              >
+                Add to Cart
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Chat Window */}
