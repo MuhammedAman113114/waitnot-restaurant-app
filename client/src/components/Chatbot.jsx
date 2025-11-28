@@ -21,6 +21,7 @@ export default function Chatbot() {
   const messagesEndRef = useRef(null);
   const [restaurantsData, setRestaurantsData] = useState([]);
   const [reviewsData, setReviewsData] = useState([]);
+  const [pendingOrder, setPendingOrder] = useState(null); // Store pending order for confirmation
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -77,17 +78,20 @@ export default function Chatbot() {
     }, 800);
   };
 
-  const placeAutomaticOrder = async (item, restaurants) => {
+  const confirmAndPlaceOrder = async (item, quantity, preference) => {
     try {
-      // Add item to cart
+      // Add item to cart with specified quantity
       addToCart({
         id: item._id || `${item.restaurantId}-${item.name}`,
         name: item.name,
         price: item.price,
         restaurantId: item.restaurantId,
         restaurantName: item.restaurantName,
-        quantity: 1
+        quantity: quantity
       });
+
+      // Clear pending order
+      setPendingOrder(null);
 
       // Close chatbot and navigate to checkout after a short delay
       setTimeout(() => {
@@ -95,11 +99,22 @@ export default function Chatbot() {
         navigate('/checkout');
       }, 2000);
 
-      return `✅ Added to Cart!\n\n📦 Item Details:\n• ${item.name}\n• ⭐ ${item.rating || 'N/A'}/5\n• 💰 ₹${item.price}\n• 📍 ${item.restaurantName}\n\n🛒 Taking you to checkout...\n\nYou can review your order and complete the purchase there!`;
+      return `✅ Added to Cart!\n\n📦 Order Confirmed:\n• ${item.name} ${preference ? `(${preference})` : ''}\n• Quantity: ${quantity}\n• ⭐ ${item.rating || 'N/A'}/5\n• 💰 ₹${item.price} × ${quantity} = ₹${item.price * quantity}\n• 📍 ${item.restaurantName}\n\n🛒 Taking you to checkout...\n\nYou can review your order and complete the purchase there!`;
     } catch (error) {
       console.error('Add to cart error:', error);
       return `❌ Sorry, I couldn't add this item to your cart. Please try adding it manually from the restaurant menu.`;
     }
+  };
+
+  const askForConfirmation = (item) => {
+    // Store the pending order
+    setPendingOrder(item);
+    
+    const vegNonVegInfo = item.isVeg !== undefined 
+      ? (item.isVeg ? '🟢 Veg' : '🔴 Non-Veg')
+      : '';
+
+    return `🍽️ Great choice! I found:\n\n${item.name}\n⭐ ${item.rating || 'N/A'}/5 | 💰 ₹${item.price}\n📍 ${item.restaurantName}\n${vegNonVegInfo}\n\nPlease confirm:\n1️⃣ How many would you like? (e.g., "1", "2", "3")\n2️⃣ ${item.isVeg === undefined ? 'Veg or Non-Veg preference?' : ''}\n\nJust reply with the quantity${item.isVeg === undefined ? ' and preference (e.g., "2 veg" or "1 non-veg")' : ' (e.g., "2")'} to proceed!`;
   };
 
   const getBotResponse = async (message) => {
@@ -121,6 +136,35 @@ export default function Chatbot() {
   };
 
   const processMessage = async (lowerMessage, restaurants, reviews) => {
+    // Check if there's a pending order waiting for confirmation
+    if (pendingOrder) {
+      // Parse quantity and preference from user response
+      const quantityMatch = lowerMessage.match(/(\d+)/);
+      const quantity = quantityMatch ? parseInt(quantityMatch[1]) : 1;
+      
+      let preference = '';
+      if (lowerMessage.includes('veg') && !lowerMessage.includes('non')) {
+        preference = 'Veg';
+      } else if (lowerMessage.includes('non-veg') || lowerMessage.includes('non veg') || lowerMessage.includes('nonveg')) {
+        preference = 'Non-Veg';
+      } else if (pendingOrder.isVeg !== undefined) {
+        preference = pendingOrder.isVeg ? 'Veg' : 'Non-Veg';
+      }
+
+      // Validate quantity
+      if (quantity < 1 || quantity > 10) {
+        return "Please specify a valid quantity between 1 and 10.";
+      }
+
+      // If item doesn't have veg/non-veg info and user didn't specify, ask again
+      if (pendingOrder.isVeg === undefined && !preference) {
+        return "Please specify if you want Veg or Non-Veg. Reply with:\n• 'veg' for vegetarian\n• 'non-veg' for non-vegetarian";
+      }
+
+      // Proceed with the order
+      return await confirmAndPlaceOrder(pendingOrder, quantity, preference);
+    }
+
     // Check if user wants to order something
     const orderKeywords = ['order', 'buy', 'get me', 'i want', 'place order', 'order for me'];
     const wantsToOrder = orderKeywords.some(keyword => lowerMessage.includes(keyword));
@@ -163,9 +207,9 @@ export default function Chatbot() {
         // Get top 3 best-rated items
         const topMatches = sortedItems.slice(0, 3);
 
-        // If user wants to order, automatically place the order for the best item
+        // If user wants to order, ask for confirmation first
         if (wantsToOrder && topMatches.length > 0) {
-          return await placeAutomaticOrder(topMatches[0], restaurants);
+          return askForConfirmation(topMatches[0]);
         }
 
         let response = `🏆 Top 3 Best Recommendations:\n\n`;
