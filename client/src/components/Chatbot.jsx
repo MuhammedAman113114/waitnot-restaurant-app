@@ -114,12 +114,16 @@ export default function Chatbot() {
         name: restaurant.name
       };
 
-      console.log('Adding to cart:', cartItem, restaurantInfo);
+      console.log('Adding to cart:', cartItem, restaurantInfo, 'Quantity:', quantity);
 
-      // Add item to cart with the correct quantity
-      // We'll call addToCart multiple times since it increments quantity
-      for (let i = 0; i < quantity; i++) {
-        addToCart(cartItem, restaurantInfo);
+      // Add item to cart first time
+      addToCart(cartItem, restaurantInfo);
+      
+      // If quantity > 1, wait and then update the quantity
+      if (quantity > 1) {
+        setTimeout(() => {
+          updateQuantity(cartItem._id, quantity);
+        }, 200);
       }
 
       // Clear pending order
