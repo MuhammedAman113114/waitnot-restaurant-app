@@ -88,14 +88,25 @@ export default function Chatbot() {
       const restaurant = restaurantsData.find(r => r._id === item.restaurantId);
       
       if (!restaurant) {
+        console.error('Restaurant not found:', item.restaurantId);
         return `❌ Sorry, I couldn't find the restaurant information. Please try again.`;
+      }
+
+      // Find the actual menu item from the restaurant to get the proper _id
+      const menuItem = restaurant.menu?.find(m => m.name === item.name);
+      
+      if (!menuItem) {
+        console.error('Menu item not found:', item.name);
+        return `❌ Sorry, I couldn't find this item in the restaurant menu. Please try again.`;
       }
 
       // Create the item object with proper structure
       const cartItem = {
-        _id: item._id || `${item.restaurantId}-${item.name}`,
-        name: item.name,
-        price: item.price
+        _id: menuItem._id,
+        name: menuItem.name,
+        price: menuItem.price,
+        image: menuItem.image,
+        description: menuItem.description
       };
 
       const restaurantInfo = {
@@ -103,14 +114,13 @@ export default function Chatbot() {
         name: restaurant.name
       };
 
-      // First, add the item once to cart
-      addToCart(cartItem, restaurantInfo);
-      
-      // Then use updateQuantity to set the correct quantity
-      // We need to wait a bit for the cart to update
-      setTimeout(() => {
-        updateQuantity(cartItem._id, quantity);
-      }, 100);
+      console.log('Adding to cart:', cartItem, restaurantInfo);
+
+      // Add item to cart with the correct quantity
+      // We'll call addToCart multiple times since it increments quantity
+      for (let i = 0; i < quantity; i++) {
+        addToCart(cartItem, restaurantInfo);
+      }
 
       // Clear pending order
       setPendingOrder(null);
@@ -119,12 +129,12 @@ export default function Chatbot() {
       setTimeout(() => {
         setIsOpen(false);
         navigate('/checkout');
-      }, 2000);
+      }, 1500);
 
       return `✅ Added to Cart!\n\n📦 Order Confirmed:\n• ${item.name} ${preference ? `(${preference})` : ''}\n• Quantity: ${quantity}\n• ⭐ ${item.rating || 'N/A'}/5\n• 💰 ₹${item.price} × ${quantity} = ₹${item.price * quantity}\n• 📍 ${item.restaurantName}\n\n🛒 Taking you to checkout...\n\nYou can review your order and complete the purchase there!`;
     } catch (error) {
       console.error('Add to cart error:', error);
-      return `❌ Sorry, I couldn't add this item to your cart. Please try adding it manually from the restaurant menu.`;
+      return `❌ Sorry, I couldn't add this item to your cart. Error: ${error.message}`;
     }
   };
 
