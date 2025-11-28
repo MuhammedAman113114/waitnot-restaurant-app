@@ -6,7 +6,7 @@ import { useCart } from '../context/CartContext';
 
 export default function Chatbot() {
   const navigate = useNavigate();
-  const { addToCart } = useCart();
+  const { addToCart, updateQuantity } = useCart();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
     {
@@ -95,8 +95,7 @@ export default function Chatbot() {
       const cartItem = {
         _id: item._id || `${item.restaurantId}-${item.name}`,
         name: item.name,
-        price: item.price,
-        quantity: 1 // Start with 1, we'll add multiple times for the quantity
+        price: item.price
       };
 
       const restaurantInfo = {
@@ -104,10 +103,14 @@ export default function Chatbot() {
         name: restaurant.name
       };
 
-      // Add item to cart the specified number of times to get the right quantity
-      for (let i = 0; i < quantity; i++) {
-        addToCart(cartItem, restaurantInfo);
-      }
+      // First, add the item once to cart
+      addToCart(cartItem, restaurantInfo);
+      
+      // Then use updateQuantity to set the correct quantity
+      // We need to wait a bit for the cart to update
+      setTimeout(() => {
+        updateQuantity(cartItem._id, quantity);
+      }, 100);
 
       // Clear pending order
       setPendingOrder(null);
