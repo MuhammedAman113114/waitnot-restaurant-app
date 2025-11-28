@@ -45,7 +45,7 @@ export default function RestaurantPage() {
   
   const filteredMenu = selectedCategory === t('all') 
     ? displayRestaurant.menu 
-    : displayRestaurant.menu.filter(item => item.category === selectedCategory || uniqueCategories.includes(item.category));
+    : displayRestaurant.menu.filter(item => item.category === selectedCategory);
 
   const getItemQuantity = (itemId) => {
     const item = cart.find(i => i._id === itemId);
