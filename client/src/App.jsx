@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
+import BottomNav from './components/BottomNav';
 import Home from './pages/Home';
 import RestaurantPage from './pages/RestaurantPage';
 import Checkout from './pages/Checkout';
@@ -19,19 +20,19 @@ function App() {
     <ThemeProvider>
       <CartProvider>
         <Router>
-          <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+          <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors pb-16">
             <Routes>
-              <Route path="/" element={<><Navbar /><Home /></>} />
-              <Route path="/restaurant/:id" element={<><Navbar /><RestaurantPage /></>} />
-              <Route path="/checkout" element={<><Navbar /><Checkout /></>} />
-              <Route path="/reels" element={<Reels />} />
+              <Route path="/" element={<><Navbar /><Home /><BottomNav /></>} />
+              <Route path="/restaurant/:id" element={<><Navbar /><RestaurantPage /><BottomNav /></>} />
+              <Route path="/checkout" element={<><Navbar /><Checkout /><BottomNav /></>} />
+              <Route path="/reels" element={<><Navbar /><Reels /><BottomNav /></>} />
               <Route path="/qr/:restaurantId/:tableNumber" element={<QROrder />} />
               <Route path="/restaurant-login" element={<RestaurantLogin />} />
               <Route path="/restaurant-dashboard" element={<RestaurantDashboard />} />
               <Route path="/payment-settings" element={<PaymentSettings />} />
-              <Route path="/login" element={<UserLogin />} />
-              <Route path="/orders" element={<><Navbar /><OrderHistory /></>} />
-              <Route path="/settings" element={<><Navbar /><Settings /></>} />
+              <Route path="/login" element={<><Navbar /><UserLogin /><BottomNav /></>} />
+              <Route path="/orders" element={<><Navbar /><OrderHistory /><BottomNav /></>} />
+              <Route path="/settings" element={<><Navbar /><Settings /><BottomNav /></>} />
             </Routes>
           </div>
         </Router>
