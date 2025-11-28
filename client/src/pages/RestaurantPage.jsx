@@ -18,7 +18,7 @@ export default function RestaurantPage() {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [showReviewsFor, setShowReviewsFor] = useState(null);
   const [itemRatings, setItemRatings] = useState({});
-  const { addToCart, cart } = useCart();
+  const { addToCart, cart, updateQuantity } = useCart();
   const { translatedContent: translatedRestaurant, isTranslating } = useRestaurantTranslation(restaurant);
 
   useEffect(() => {
@@ -238,10 +238,7 @@ export default function RestaurantPage() {
                   ) : (
                     <div className="flex items-center gap-2 sm:gap-3 bg-primary text-white rounded-lg px-2 sm:px-3 py-2 shadow-md">
                       <button
-                        onClick={() => {
-                          const { updateQuantity } = useCart();
-                          updateQuantity(item._id, quantity - 1);
-                        }}
+                        onClick={() => updateQuantity(item._id, quantity - 1)}
                         className="p-1 hover:bg-red-600 rounded transition-colors"
                       >
                         <Minus size={18} />
