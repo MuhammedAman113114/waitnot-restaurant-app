@@ -210,8 +210,13 @@ export default function QROrder() {
       <div className="bg-primary text-white p-4 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto">
           <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-white hover:text-gray-200 mb-2 transition-colors"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              navigate('/');
+            }}
+            className="flex items-center gap-2 text-white hover:text-gray-200 mb-2 transition-colors active:bg-red-600 p-2 -ml-2 rounded-lg touch-manipulation"
+            type="button"
           >
             <ArrowLeft size={20} />
             <span className="font-medium">Back to Home</span>

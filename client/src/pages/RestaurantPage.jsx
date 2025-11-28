@@ -57,8 +57,13 @@ export default function RestaurantPage() {
       <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
       {/* Back Button */}
       <button
-        onClick={() => navigate('/')}
-        className="flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary mb-4 transition-colors"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          navigate('/');
+        }}
+        className="flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary mb-4 transition-colors active:bg-gray-100 dark:active:bg-gray-800 p-2 -ml-2 rounded-lg touch-manipulation"
+        type="button"
       >
         <ArrowLeft size={20} />
         <span className="font-medium">{t('back')}</span>
