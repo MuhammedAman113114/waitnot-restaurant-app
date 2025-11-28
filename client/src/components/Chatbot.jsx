@@ -92,6 +92,55 @@ export default function Chatbot() {
   };
 
   const processMessage = async (lowerMessage, restaurants, reviews) => {
+    // Search for specific food items by name (e.g., "best chocolate shake", "where can I get pizza")
+    const foodKeywords = ['shake', 'pizza', 'burger', 'biryani', 'pasta', 'sandwich', 'coffee', 'tea', 'cake', 'ice cream', 'noodles', 'rice', 'chicken', 'paneer', 'dal', 'roti', 'naan', 'samosa', 'dosa', 'idli', 'vada'];
+    const hasSpecificFood = foodKeywords.some(keyword => lowerMessage.includes(keyword));
+    
+    if (hasSpecificFood || (lowerMessage.includes('best') && !lowerMessage.includes('restaurant'))) {
+      // Extract the food item name from the message
+      const allMenuItems = [];
+      restaurants.forEach(restaurant => {
+        restaurant.menu?.forEach(item => {
+          allMenuItems.push({
+            ...item,
+            restaurantName: restaurant.name,
+            restaurantRating: restaurant.rating
+          });
+        });
+      });
+
+      // Find items that match the search query
+      const matchingItems = allMenuItems.filter(item => {
+        const itemName = item.name.toLowerCase();
+        // Check if any word in the message matches the item name
+        return lowerMessage.split(' ').some(word => 
+          itemName.includes(word) || word.includes(itemName.split(' ')[0])
+        );
+      });
+
+      if (matchingItems.length > 0) {
+        // Sort by rating
+        const sortedItems = matchingItems.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+        const topMatches = sortedItems.slice(0, 5);
+
+        let response = `🍽️ Found ${matchingItems.length} item(s) matching your search:\n\n`;
+        topMatches.forEach((item, i) => {
+          response += `${i + 1}. ${item.name}\n`;
+          if (item.rating) response += `   ⭐ ${item.rating}/5\n`;
+          response += `   💰 ₹${item.price}\n`;
+          response += `   📍 ${item.restaurantName}\n`;
+          if (item.description) response += `   📝 ${item.description}\n`;
+          response += `\n`;
+        });
+        
+        if (matchingItems.length > 5) {
+          response += `...and ${matchingItems.length - 5} more options available!`;
+        }
+        
+        return response;
+      }
+    }
+
     // Top rated restaurants
     if (lowerMessage.includes('top') && (lowerMessage.includes('restaurant') || lowerMessage.includes('rated'))) {
       const topRestaurants = [...restaurants]
