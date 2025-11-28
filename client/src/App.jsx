@@ -30,7 +30,7 @@ function App() {
               <Route path="/restaurant-login" element={<RestaurantLogin />} />
               <Route path="/restaurant-dashboard" element={<RestaurantDashboard />} />
               <Route path="/payment-settings" element={<PaymentSettings />} />
-              <Route path="/login" element={<><Navbar /><UserLogin /><BottomNav /></>} />
+              <Route path="/login" element={<><Navbar /><UserLogin /></>} />
               <Route path="/orders" element={<><Navbar /><OrderHistory /><BottomNav /></>} />
               <Route path="/settings" element={<><Navbar /><Settings /><BottomNav /></>} />
             </Routes>
