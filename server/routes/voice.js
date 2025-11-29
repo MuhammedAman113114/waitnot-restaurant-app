@@ -4,7 +4,8 @@ import * as db from '../db.js';
 const router = express.Router();
 
 // Feature flag for AI processing
-const USE_AI_PROCESSING = process.env.USE_AI_PROCESSING === 'true';
+// Temporarily disabled due to Hugging Face returning "unknown"
+const USE_AI_PROCESSING = false; // process.env.USE_AI_PROCESSING === 'true';
 
 // Try to import Hugging Face service (optional)
 let processVoiceWithAI = null;
