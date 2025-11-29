@@ -10,7 +10,44 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSupported, setIsSupported] = useState(true);
   const [permissionDenied, setPermissionDenied] = useState(false);
+  const [wakeWordDetected, setWakeWordDetected] = useState(false);
   const recognitionRef = useRef(null);
+
+  // Helper function to speak text
+  const speak = (text) => {
+    if ('speechSynthesis' in window) {
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'en-US';
+      utterance.rate = 1.0;
+      utterance.volume = 1.0;
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  // Helper function to play beep sound
+  const playBeep = () => {
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.value = 800;
+      oscillator.type = 'sine';
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.2);
+    } catch (error) {
+      console.error('Error playing beep:', error);
+    }
+  };
 
   useEffect(() => {
     // Check if browser supports speech recognition
@@ -33,10 +70,19 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
         if (finalTranscript) {
           setTranscript(finalTranscript);
           // Check for wake word
-          if (finalTranscript.toLowerCase().includes('hey waitnot')) {
+          if (finalTranscript.toLowerCase().includes('hey waitnot') || 
+              finalTranscript.toLowerCase().includes('hey wait not') ||
+              finalTranscript.toLowerCase().includes('hey weight not')) {
             // Provide immediate feedback
-            speak('Yes, I am listening!');
-            setResponse('🎤 Activated! Processing your command...');
+            setWakeWordDetected(true);
+            playBeep(); // Play beep sound
+            setResponse('🎤 Activated! I am listening...');
+            
+            // Speak confirmation after a short delay
+            setTimeout(() => {
+              speak('Yes, listening!');
+            }, 100);
+            
             processVoiceCommand(finalTranscript);
           }
         }
@@ -111,7 +157,11 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
       });
 
       setResponse(data.reply);
-      speak(data.reply);
+      
+      // Speak response after a delay
+      setTimeout(() => {
+        speak(data.reply);
+      }, 500);
 
       // Handle different actions
       if (data.action === 'order' && data.items.length > 0) {
@@ -124,15 +174,7 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
       speak(errorMsg);
     } finally {
       setIsProcessing(false);
-    }
-  };
-
-  const speak = (text) => {
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'en-US';
-      utterance.rate = 1.0;
-      window.speechSynthesis.speak(utterance);
+      setWakeWordDetected(false);
     }
   };
 
@@ -147,8 +189,10 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
       <button
         onClick={toggleListening}
         disabled={permissionDenied}
-        className={`p-3 sm:p-4 rounded-full shadow-lg transition-all duration-300 ${
-          isListening
+        className={`p-3 sm:p-4 rounded-full shadow-lg transition-all duration-300 relative ${
+          wakeWordDetected
+            ? 'bg-green-500 hover:bg-green-600 scale-110'
+            : isListening
             ? 'bg-red-500 hover:bg-red-600 animate-pulse'
             : permissionDenied
             ? 'bg-gray-400 cursor-not-allowed'
@@ -157,6 +201,11 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
         aria-label={isListening ? 'Stop listening' : 'Start listening'}
       >
         {isListening ? <Mic size={24} className="sm:w-7 sm:h-7" /> : <MicOff size={24} className="sm:w-7 sm:h-7" />}
+        
+        {/* Wake word detected indicator */}
+        {wakeWordDetected && (
+          <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-ping"></span>
+        )}
       </button>
 
       {/* Voice Status Panel */}
@@ -175,9 +224,16 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
           </div>
 
           {/* Wake Word Hint */}
-          {isListening && !transcript && (
+          {isListening && !transcript && !wakeWordDetected && (
             <div className="mb-3 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-sm text-blue-700 dark:text-blue-300">
               💡 Say: <strong>"Hey Waitnot"</strong> to activate
+            </div>
+          )}
+          
+          {/* Wake Word Detected */}
+          {wakeWordDetected && (
+            <div className="mb-3 p-2 bg-green-50 dark:bg-green-900/20 rounded text-sm text-green-700 dark:text-green-300 animate-pulse">
+              ✅ <strong>Wake word detected!</strong> Listening to your command...
             </div>
           )}
 
