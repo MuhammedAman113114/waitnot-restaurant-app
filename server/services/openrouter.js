@@ -1,7 +1,16 @@
-import axios from 'axios';
+import OpenAI from 'openai';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
-const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
+
+// Initialize OpenAI client with OpenRouter configuration
+const openai = new OpenAI({
+  baseURL: 'https://openrouter.ai/api/v1',
+  apiKey: OPENROUTER_API_KEY,
+  defaultHeaders: {
+    'HTTP-Referer': 'https://waitnot-restaurant-app.onrender.com',
+    'X-Title': 'Waitnot Voice Assistant'
+  }
+});
 
 // System prompt for order processing
 const SYSTEM_PROMPT = `You are the Waitnot Voice AI assistant. Your job is to convert customer speech into structured order JSON.
@@ -45,29 +54,18 @@ export async function processVoiceWithAI(transcript, menuItems = []) {
 
     const userPrompt = `Customer said: "${transcript}"${menuContext}\n\nConvert this to order JSON:`;
 
-    const response = await axios.post(
-      `${OPENROUTER_BASE_URL}/chat/completions`,
-      {
-        model: 'openai/gpt-4o-mini', // Fast and cost-effective
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.2, // Low temperature for precise orders
-        max_tokens: 300,
-        response_format: { type: 'json_object' } // Force JSON output
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://waitnot-restaurant-app.onrender.com',
-          'X-Title': 'Waitnot Voice Assistant'
-        }
-      }
-    );
+    const completion = await openai.chat.completions.create({
+      model: 'openai/gpt-4o-mini', // Fast and cost-effective
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.2, // Low temperature for precise orders
+      max_tokens: 300,
+      response_format: { type: 'json_object' } // Force JSON output
+    });
 
-    const aiResponse = response.data.choices[0].message.content;
+    const aiResponse = completion.choices[0].message.content;
     console.log('OpenRouter AI Response:', aiResponse);
 
     // Parse and validate JSON
@@ -82,6 +80,9 @@ export async function processVoiceWithAI(transcript, menuItems = []) {
 
   } catch (error) {
     console.error('OpenRouter AI Error:', error.message);
+    if (error.response) {
+      console.error('OpenRouter Error Details:', error.response.data);
+    }
     
     // Fallback to keyword-based processing
     return {
