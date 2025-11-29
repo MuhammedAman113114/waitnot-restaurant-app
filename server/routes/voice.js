@@ -9,16 +9,21 @@ const USE_AI_PROCESSING = process.env.USE_AI_PROCESSING === 'true';
 // Try to import OpenRouter service (optional)
 let processVoiceWithAI = null;
 let validateAndRepairOrder = null;
+let openrouterLoaded = false;
 
-try {
-  const openrouterModule = await import('../services/openrouter.js');
-  processVoiceWithAI = openrouterModule.processVoiceWithAI;
-  validateAndRepairOrder = openrouterModule.validateAndRepairOrder;
-  console.log('✅ OpenRouter AI service loaded successfully');
-} catch (error) {
-  console.log('⚠️ OpenRouter AI service not available (dependencies not installed)');
-  console.log('   Voice assistant will use fallback keyword matching');
-}
+// Load OpenRouter service asynchronously
+(async () => {
+  try {
+    const openrouterModule = await import('../services/openrouter.js');
+    processVoiceWithAI = openrouterModule.processVoiceWithAI;
+    validateAndRepairOrder = openrouterModule.validateAndRepairOrder;
+    openrouterLoaded = true;
+    console.log('✅ OpenRouter AI service loaded successfully');
+  } catch (error) {
+    console.log('⚠️ OpenRouter AI service not available (dependencies not installed)');
+    console.log('   Voice assistant will use fallback keyword matching');
+  }
+})();
 
 // Helper function to extract quantity from text
 function extractQuantity(text) {
@@ -144,7 +149,7 @@ router.post('/process', async (req, res) => {
     }
 
     // Try AI processing first if enabled and available
-    if (USE_AI_PROCESSING && process.env.OPENROUTER_API_KEY && processVoiceWithAI && validateAndRepairOrder) {
+    if (USE_AI_PROCESSING && process.env.OPENROUTER_API_KEY && openrouterLoaded && processVoiceWithAI && validateAndRepairOrder) {
       try {
         console.log('Using AI processing...');
         const aiResult = await processVoiceWithAI(cleanCommand, menuItems);
@@ -163,6 +168,8 @@ router.post('/process', async (req, res) => {
         console.error('AI processing failed, falling back to keyword matching:', aiError.message);
         // Continue to fallback logic below
       }
+    } else if (USE_AI_PROCESSING && !openrouterLoaded) {
+      console.log('OpenRouter still loading, using fallback...');
     }
     
     // Determine action
