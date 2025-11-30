@@ -25,6 +25,31 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
       utterance.lang = 'en-US';
       utterance.rate = 1.0;
       utterance.volume = 1.0;
+      
+      // Pause recognition while speaking to avoid feedback loop
+      utterance.onstart = () => {
+        if (recognitionRef.current && isListening) {
+          try {
+            recognitionRef.current.stop();
+          } catch (e) {
+            console.log('Could not stop recognition:', e);
+          }
+        }
+      };
+      
+      // Resume recognition after speaking
+      utterance.onend = () => {
+        if (isListening) {
+          setTimeout(() => {
+            try {
+              recognitionRef.current?.start();
+            } catch (e) {
+              console.log('Could not restart recognition:', e);
+            }
+          }, 500);
+        }
+      };
+      
       window.speechSynthesis.speak(utterance);
     }
   };
