@@ -287,9 +287,15 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
           }
           
           // lowerTranscript already defined above, reuse it
+          // Check for wake word with multiple variations
           const hasWakeWord = lowerTranscript.includes('hey aman') || 
                              lowerTranscript.includes('hey amaan') ||
-                             lowerTranscript.includes('hey aman');
+                             lowerTranscript.includes('hey a man') ||
+                             lowerTranscript.includes('heyaman') ||
+                             lowerTranscript.includes('hi aman') ||
+                             lowerTranscript.includes('hi amaan') ||
+                             lowerTranscript.includes('hey man') ||
+                             lowerTranscript.includes('aman') && lowerTranscript.length < 15;
           
           // If in conversation, process any response (no wake word needed)
           // Otherwise, only process if wake word is detected
@@ -415,8 +421,15 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
       const lowerCommand = command.toLowerCase();
       
       // Check for wake word first - if present, don't load old state
+      // Multiple variations for better detection
       const hasWakeWord = lowerCommand.includes('hey aman') || 
-                         lowerCommand.includes('hey amaan');
+                         lowerCommand.includes('hey amaan') ||
+                         lowerCommand.includes('hey a man') ||
+                         lowerCommand.includes('heyaman') ||
+                         lowerCommand.includes('hi aman') ||
+                         lowerCommand.includes('hi amaan') ||
+                         lowerCommand.includes('hey man') ||
+                         (lowerCommand.includes('aman') && lowerCommand.length < 15);
       
       // Only reload conversation state if NO wake word detected
       let latestState = null;
