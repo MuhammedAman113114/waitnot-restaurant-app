@@ -322,17 +322,20 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
       }
       
       // Store matched items and ask for veg/non-veg preference
-      const msg = `Sure! Would you like a vegetarian or non-vegetarian ${matchedFood}?`;
-      setResponse(msg);
-      speak(msg);
-      
-      setConversationState({
+      const newState = {
         step: 'awaiting_veg_preference',
         items: matchingItems,
         foodName: matchedFood,
         requestedQuantity: requestedQuantity || null
-      });
-      console.log('Conversation state set:', conversationState);
+      };
+      
+      setConversationState(newState);
+      conversationStateRef.current = newState; // Update ref immediately
+      console.log('Conversation state set:', newState);
+      
+      const msg = `Sure! Would you like a vegetarian or non-vegetarian ${matchedFood}?`;
+      setResponse(msg);
+      speak(msg);
       
     } catch (error) {
       console.error('Error handling food request:', error);
@@ -381,10 +384,12 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
       setResponse(msg);
       speak(msg);
       
-      setConversationState({
+      const newState = {
         step: 'awaiting_veg_preference',
         items: ratedItems
-      });
+      };
+      setConversationState(newState);
+      conversationStateRef.current = newState; // Update ref immediately
     } catch (error) {
       console.error('Error fetching recommendations:', error);
       const msg = "Sorry, I couldn't fetch recommendations. Please try again.";
@@ -427,6 +432,7 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
           setResponse(msg);
           speak(msg);
           setConversationState(null);
+          conversationStateRef.current = null;
           return;
         }
         
@@ -448,6 +454,7 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
           }, 2000);
           
           setConversationState(null);
+          conversationStateRef.current = null;
         } else {
           // Ask for quantity
           const ratingText = topItem.averageRating ? ` with ${topItem.averageRating} stars rating` : '';
@@ -455,11 +462,13 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
           setResponse(msg);
           speak(msg);
           
-          setConversationState({
+          const newState = {
             step: 'awaiting_quantity',
             selectedItem: topItem,
             preference: isVeg ? 'veg' : 'non-veg'
-          });
+          };
+          setConversationState(newState);
+          conversationStateRef.current = newState; // Update ref immediately
         }
         
       } else if (conversationState.step === 'awaiting_quantity') {
@@ -491,6 +500,7 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
         }, 2000);
         
         setConversationState(null);
+        conversationStateRef.current = null;
       }
     } catch (error) {
       console.error('Error handling follow-up:', error);
@@ -498,6 +508,7 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
       setResponse(msg);
       speak(msg);
       setConversationState(null);
+      conversationStateRef.current = null;
     } finally {
       setIsProcessing(false);
       setWakeWordDetected(false);
