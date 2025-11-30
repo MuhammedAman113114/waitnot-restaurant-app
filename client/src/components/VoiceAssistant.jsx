@@ -28,18 +28,25 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
   const recognitionRef = useRef(null);
   const conversationStateRef = useRef(loadConversationState()); // Initialize ref with saved state
   const isSpeakingRef = useRef(false); // Ref for isSpeaking to use in callbacks
+  const lastSpokenTextRef = useRef(''); // Track last spoken text to prevent duplicates
 
   // Helper function to speak text
   const speak = (text) => {
     if ('speechSynthesis' in window) {
-      console.log('Speaking:', text);
-      
-      // If already speaking, wait for it to finish
-      if (isSpeakingRef.current) {
-        console.log('Already speaking, queuing message');
-        setTimeout(() => speak(text), 500);
+      // Prevent duplicate messages
+      if (lastSpokenTextRef.current === text) {
+        console.log('Skipping duplicate message:', text.substring(0, 50));
         return;
       }
+      
+      // If already speaking, skip this message (don't queue)
+      if (isSpeakingRef.current) {
+        console.log('Already speaking, skipping message');
+        return;
+      }
+      
+      console.log('Speaking:', text);
+      lastSpokenTextRef.current = text;
       
       // Cancel any ongoing speech
       window.speechSynthesis.cancel();
@@ -69,6 +76,7 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
         setTimeout(() => {
           setIsSpeaking(false);
           isSpeakingRef.current = false;
+          lastSpokenTextRef.current = ''; // Clear last spoken text
           if (isListening) {
             try {
               recognitionRef.current?.start();
