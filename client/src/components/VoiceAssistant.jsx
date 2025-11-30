@@ -29,22 +29,21 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
   const conversationStateRef = useRef(loadConversationState()); // Initialize ref with saved state
   const isSpeakingRef = useRef(false); // Ref for isSpeaking to use in callbacks
   const lastSpokenTextRef = useRef(''); // Track last spoken text to prevent duplicates
+  const speechQueueRef = useRef([]); // Queue for speech messages
 
-  // Helper function to speak text
-  const speak = (text) => {
+  // Process speech queue
+  const processSpeechQueue = () => {
+    if (speechQueueRef.current.length === 0 || isSpeakingRef.current) {
+      return;
+    }
+    
+    const text = speechQueueRef.current.shift();
+    speakNow(text);
+  };
+
+  // Helper function to speak text immediately
+  const speakNow = (text) => {
     if ('speechSynthesis' in window) {
-      // Prevent duplicate messages
-      if (lastSpokenTextRef.current === text) {
-        console.log('Skipping duplicate message:', text.substring(0, 50));
-        return;
-      }
-      
-      // If already speaking, skip this message (don't queue)
-      if (isSpeakingRef.current) {
-        console.log('Already speaking, skipping message');
-        return;
-      }
-      
       console.log('Speaking:', text);
       lastSpokenTextRef.current = text;
       
@@ -72,12 +71,17 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
       
       // Resume recognition after speaking with longer delay
       utterance.onend = () => {
-        console.log('TTS ended, will restart recognition in 3 seconds');
+        console.log('TTS ended, processing next in queue');
         setTimeout(() => {
           setIsSpeaking(false);
           isSpeakingRef.current = false;
           lastSpokenTextRef.current = ''; // Clear last spoken text
-          if (isListening) {
+          
+          // Process next message in queue
+          processSpeechQueue();
+          
+          // Restart recognition if no more messages
+          if (speechQueueRef.current.length === 0 && isListening) {
             try {
               recognitionRef.current?.start();
               console.log('Recognition restarted after TTS');
@@ -85,16 +89,41 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
               console.log('Could not restart recognition:', e);
             }
           }
-        }, 3000);
+        }, 2000); // Reduced delay
       };
       
       utterance.onerror = (error) => {
         console.error('TTS error:', error);
         setIsSpeaking(false);
         isSpeakingRef.current = false;
+        processSpeechQueue(); // Try next message
       };
       
       window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  // Helper function to speak text (with queue)
+  const speak = (text) => {
+    if ('speechSynthesis' in window) {
+      // Prevent duplicate messages
+      if (lastSpokenTextRef.current === text) {
+        console.log('Skipping duplicate message:', text.substring(0, 50));
+        return;
+      }
+      
+      // Check if already in queue
+      if (speechQueueRef.current.includes(text)) {
+        console.log('Message already in queue, skipping');
+        return;
+      }
+      
+      // Add to queue
+      speechQueueRef.current.push(text);
+      console.log('Added to speech queue. Queue length:', speechQueueRef.current.length);
+      
+      // Process queue
+      processSpeechQueue();
     }
   };
 
@@ -262,7 +291,8 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
               setWakeWordDetected(true);
               playBeep();
               setResponse('🎤 Activated! I am listening...');
-              setTimeout(() => speak('Yes, listening!'), 100);
+              // Speak wake word confirmation immediately
+              speak('Yes, listening!');
             }
             
             processVoiceCommand(finalTranscript);
