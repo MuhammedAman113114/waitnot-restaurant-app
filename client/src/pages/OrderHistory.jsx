@@ -136,18 +136,35 @@ export default function OrderHistory() {
                       </span>
                     </div>
                     {/* Order Time - More Prominent */}
-                    <div className="flex items-center gap-2 mb-1">
-                      <Clock size={16} className="text-gray-500" />
-                      <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                        {new Date(order.createdAt).toLocaleString('en-IN', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          hour12: true
-                        })}
-                      </p>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Clock size={16} className="text-gray-500" />
+                        <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                          Ordered: {new Date(order.createdAt).toLocaleString('en-IN', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true
+                          })}
+                        </p>
+                      </div>
+                      {(order.status === 'completed' || order.status === 'delivered') && order.updatedAt && (
+                        <div className="flex items-center gap-2">
+                          <CheckCircle size={16} className="text-green-500" />
+                          <p className="text-sm font-semibold text-green-600 dark:text-green-400">
+                            Completed: {new Date(order.updatedAt).toLocaleString('en-IN', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: true
+                            })}
+                          </p>
+                        </div>
+                      )}
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       Order Type: {order.orderType === 'dine-in' ? `Table ${order.tableNumber}` : 'Delivery'}
