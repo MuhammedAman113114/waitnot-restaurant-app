@@ -28,7 +28,6 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
   const recognitionRef = useRef(null);
   const conversationStateRef = useRef(loadConversationState()); // Initialize ref with saved state
   const isSpeakingRef = useRef(false); // Ref for isSpeaking to use in callbacks
-  const lastSpeechTimeRef = useRef(0); // Track when TTS last ended
 
   // Helper function to speak text
   const speak = (text) => {
@@ -45,48 +44,40 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
       // Cancel any ongoing speech
       window.speechSynthesis.cancel();
       
-      // STOP recognition BEFORE starting TTS
-      console.log('Stopping recognition before TTS');
-      setIsSpeaking(true);
-      isSpeakingRef.current = true;
-      if (recognitionRef.current && isListening) {
-        try {
-          recognitionRef.current.stop();
-          console.log('Recognition stopped successfully');
-        } catch (e) {
-          console.log('Could not stop recognition:', e);
-        }
-      }
-      
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'en-US';
       utterance.rate = 1.0;
       utterance.volume = 1.0;
       
-      // Confirm recognition is stopped when TTS starts
+      // Pause recognition while speaking to avoid feedback loop
       utterance.onstart = () => {
         console.log('TTS started:', text.substring(0, 50) + '...');
         setIsSpeaking(true);
         isSpeakingRef.current = true;
+        if (recognitionRef.current && isListening) {
+          try {
+            recognitionRef.current.stop();
+          } catch (e) {
+            console.log('Could not stop recognition:', e);
+          }
+        }
       };
       
-      // Resume recognition after speaking with longer delay to prevent feedback
+      // Resume recognition after speaking with longer delay
       utterance.onend = () => {
-        console.log('TTS ended, starting 3-second mute period');
-        lastSpeechTimeRef.current = Date.now(); // Mark when speech ended
-        
+        console.log('TTS ended, will restart recognition in 3 seconds');
         setTimeout(() => {
           setIsSpeaking(false);
           isSpeakingRef.current = false;
           if (isListening) {
             try {
               recognitionRef.current?.start();
-              console.log('✅ Recognition restarted after mute period');
+              console.log('Recognition restarted after TTS');
             } catch (e) {
               console.log('Could not restart recognition:', e);
             }
           }
-        }, 3000); // 3 seconds to ensure TTS audio has completely finished
+        }, 3000);
       };
       
       utterance.onerror = (error) => {
@@ -147,25 +138,31 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
 
   useEffect(() => {
     // Check if browser supports speech recognition
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+      console.error('Speech Recognition not supported in this browser');
+      setIsSupported(false);
+      return;
+    }
+    
+    try {
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = true;
-      recognitionRef.current.interimResults = false; // Only get final results for accuracy
-      recognitionRef.current.lang = 'en-IN'; // Changed to Indian English for better accent recognition
-      recognitionRef.current.maxAlternatives = 3; // Get multiple alternatives for better matching
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'en-US';
+      
+      console.log('Speech Recognition initialized successfully');
+    } catch (error) {
+      console.error('Error initializing Speech Recognition:', error);
+      setIsSupported(false);
+      return;
+    }
 
       recognitionRef.current.onresult = (event) => {
         // CRITICAL: Don't process anything if assistant is speaking
         if (isSpeakingRef.current) {
           console.log('Recognition triggered while speaking - ignoring all results');
-          return;
-        }
-        
-        // CRITICAL: Don't process if within 3 seconds of last speech ending (mute period)
-        const timeSinceLastSpeech = Date.now() - lastSpeechTimeRef.current;
-        if (timeSinceLastSpeech < 3000) {
-          console.log(`🔇 MUTE PERIOD - Ignoring input (${timeSinceLastSpeech}ms since TTS ended)`);
           return;
         }
         
@@ -192,13 +189,15 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
           const avgConfidence = finalResultsCount > 0 ? totalConfidence / finalResultsCount : 0;
           console.log(`Final transcript: "${finalTranscript}" (avg confidence: ${(avgConfidence * 100).toFixed(1)}%)`);
           
+          setTranscript(finalTranscript);
+          
           // Don't process if assistant is currently speaking
           if (isSpeakingRef.current) {
             console.log('Ignoring transcript while assistant is speaking:', finalTranscript);
             return;
           }
           
-          // ENHANCED: Detect assistant feedback loop - check for ANY assistant phrases
+          // Also ignore if transcript contains common assistant phrases (feedback loop detection)
           const assistantPhrases = [
             'would you like',
             'how many would you like',
@@ -207,33 +206,18 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
             'placing your order',
             'great choice',
             'perfect',
-            'say a for',
-            'say b for',
-            'vegetarian or non',
-            'non vegetarian',
-            'waitnot',
-            'aman assistant'
+            'sure'
           ];
           
           const lowerTranscript = finalTranscript.toLowerCase();
-          
-          // Check if transcript contains assistant phrases (even in short messages)
           const containsAssistantPhrase = assistantPhrases.some(phrase => 
-            lowerTranscript.includes(phrase)
+            lowerTranscript.includes(phrase) && lowerTranscript.length > 50
           );
           
           if (containsAssistantPhrase) {
-            console.log('🚫 FEEDBACK LOOP DETECTED - Ignoring assistant echo:', finalTranscript);
+            console.log('Ignoring transcript - appears to be assistant feedback:', finalTranscript);
             return;
           }
-          
-          // Additional check: if transcript is very long (>100 chars), likely feedback
-          if (finalTranscript.length > 100) {
-            console.log('🚫 FEEDBACK LOOP - Transcript too long, likely echo:', finalTranscript.substring(0, 50) + '...');
-            return;
-          }
-          
-          setTranscript(finalTranscript);
           
           // lowerTranscript already defined above, reuse it
           const hasWakeWord = lowerTranscript.includes('hey aman') || 
@@ -310,37 +294,39 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
       recognitionRef.current?.stop();
       setIsListening(false);
     } else {
-      // Request microphone permission with noise reduction constraints
       try {
-        // For Capacitor/APK, permissions are handled via AndroidManifest
-        // For web, request permission with audio constraints
-        if (!Capacitor.isNativePlatform() && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          // Request microphone with noise suppression and echo cancellation
-          const stream = await navigator.mediaDevices.getUserMedia({ 
-            audio: {
-              echoCancellation: true,        // Cancel echo from speakers
-              noiseSuppression: true,        // Reduce background noise
-              autoGainControl: true,         // Automatic volume adjustment
-              sampleRate: 48000,             // Higher quality audio
-              channelCount: 1                // Mono audio (sufficient for voice)
-            }
-          });
-          
-          console.log('Microphone initialized with noise reduction');
-          console.log('Audio settings:', stream.getAudioTracks()[0].getSettings());
+        // Request microphone permission
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+              audio: true  // Simplified for mobile compatibility
+            });
+            
+            console.log('Microphone access granted');
+            console.log('Audio settings:', stream.getAudioTracks()[0].getSettings());
+          } catch (micError) {
+            console.error('Microphone permission denied:', micError);
+            setPermissionDenied(true);
+            setResponse('Please allow microphone access to use voice commands.');
+            return;
+          }
         }
         
-        recognitionRef.current?.start();
-        setIsListening(true);
-        setTranscript('');
-        setResponse('');
-        setPermissionDenied(false);
+        // Start recognition
+        if (recognitionRef.current) {
+          recognitionRef.current.start();
+          setIsListening(true);
+          setTranscript('');
+          setResponse('');
+          setPermissionDenied(false);
+          console.log('Speech recognition started');
+        } else {
+          throw new Error('Speech recognition not initialized');
+        }
       } catch (error) {
-        console.error('Microphone permission error:', error);
+        console.error('Error starting recognition:', error);
         setPermissionDenied(true);
-        const errorMsg = Capacitor.isNativePlatform() 
-          ? 'Please allow microphone access in your device settings.'
-          : 'Please allow microphone access to use voice commands.';
+        const errorMsg = 'Could not start voice recognition. Please try again.';
         setResponse(errorMsg);
       }
     }
@@ -533,7 +519,7 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
       
       saveConversationState(newState);
       
-      const msg = `Sure! Would you like vegetarian or non-vegetarian ${matchedFood}?`;
+      const msg = `Sure! Would you like a vegetarian or non-vegetarian ${matchedFood}?`;
       setResponse(msg);
       speak(msg);
       
@@ -616,81 +602,31 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
       console.log('HandleFollowUp - Current step:', currentState.step);
       
       if (currentState.step === 'awaiting_veg_preference') {
-        // Advanced veg/non-veg preference detection with fuzzy matching
-        const lowerCommand = command.toLowerCase().trim();
+        // Determine veg/non-veg preference
+        // Look for the LAST occurrence to get user's actual answer (not the question echo)
+        const words = command.split(/\s+/);
+        const lastFewWords = words.slice(-5).join(' '); // Check last 5 words only
         
-        console.log('🎤 Analyzing command:', lowerCommand);
+        console.log('Checking veg preference in last words:', lastFewWords);
         
-        // Helper function for fuzzy string matching (Levenshtein distance)
-        const fuzzyMatch = (str, target, threshold = 2) => {
-          const distance = (s1, s2) => {
-            const costs = [];
-            for (let i = 0; i <= s1.length; i++) {
-              let lastValue = i;
-              for (let j = 0; j <= s2.length; j++) {
-                if (i === 0) costs[j] = j;
-                else if (j > 0) {
-                  let newValue = costs[j - 1];
-                  if (s1.charAt(i - 1) !== s2.charAt(j - 1))
-                    newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
-                  costs[j - 1] = lastValue;
-                  lastValue = newValue;
-                }
-              }
-              if (i > 0) costs[s2.length] = lastValue;
-            }
-            return costs[s2.length];
-          };
-          return distance(str, target) <= threshold;
-        };
+        // Check for non-veg first (more specific)
+        const isNonVeg = lastFewWords.includes('non-veg') || 
+                        lastFewWords.includes('non veg') ||
+                        lastFewWords.includes('nonveg') ||
+                        lastFewWords.includes('chicken') || 
+                        lastFewWords.includes('meat') ||
+                        (lastFewWords.includes('not') && lastFewWords.includes('veg'));
         
-        // Enhanced non-veg detection with phonetic variations
-        const nonVegPatterns = [
-          'non vegetarian', 'non-vegetarian', 'nonvegetarian',
-          'non veg', 'non-veg', 'nonveg', 'non vej', 'non vedge',
-          'chicken', 'meat', 'beef', 'mutton', 'fish', 'egg',
-          'non vegeterian', 'non vegitarian' // Common misspellings
-        ];
+        // Check for veg (but not if it's part of "non-veg")
+        const isVeg = !isNonVeg && (
+          lastFewWords.includes('vegetarian') || 
+          lastFewWords.includes('veg')
+        );
         
-        // Enhanced veg detection with phonetic variations
-        const vegPatterns = [
-          'vegetarian', 'vegeterian', 'vegitarian', // Phonetic variations
-          'veg', 'vedge', 'vej', 'veggie', 'veggies',
-          'vegetables', 'plant based', 'plant-based'
-        ];
-        
-        // Check for explicit "non" prefix first (highest priority)
-        const hasNonPrefix = lowerCommand.includes('non ') || 
-                            lowerCommand.includes('non-') ||
-                            lowerCommand.startsWith('non');
-        
-        // Check for non-veg patterns
-        let isNonVeg = hasNonPrefix || nonVegPatterns.some(pattern => {
-          if (lowerCommand.includes(pattern)) return true;
-          // Fuzzy match for typos
-          const words = lowerCommand.split(/\s+/);
-          return words.some(word => fuzzyMatch(word, pattern.split(' ')[0]));
-        });
-        
-        // Check for veg patterns (only if not non-veg)
-        let isVeg = !isNonVeg && vegPatterns.some(pattern => {
-          if (lowerCommand.includes(pattern)) return true;
-          // Fuzzy match for typos
-          const words = lowerCommand.split(/\s+/);
-          return words.some(word => fuzzyMatch(word, pattern.split(' ')[0]));
-        });
-        
-        // Additional context: if command is very short, be more lenient
-        if (!isVeg && !isNonVeg && lowerCommand.length < 10) {
-          // Check for single word responses
-          if (lowerCommand.match(/\b(veg|vedge|vej)\b/)) isVeg = true;
-          if (lowerCommand.match(/\b(non|meat|chicken)\b/)) isNonVeg = true;
-        }
-        
-        console.log('✅ Detection result - isVeg:', isVeg, 'isNonVeg:', isNonVeg);
+        console.log('Detected - isVeg:', isVeg, 'isNonVeg:', isNonVeg);
         
         if (!isVeg && !isNonVeg) {
-          const msg = "I didn't catch that. Please say clearly: vegetarian or non-vegetarian.";
+          const msg = "I didn't catch that. Please say 'vegetarian' or 'non-vegetarian'.";
           setResponse(msg);
           speak(msg);
           return;
@@ -991,9 +927,16 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
     }
   };
 
-  // Don't render if not supported
+  // Show message if not supported
   if (!isSupported) {
-    return null;
+    return (
+      <div className="fixed bottom-32 left-4 z-50">
+        <div className="bg-gray-800 text-white p-3 rounded-lg shadow-lg text-xs max-w-xs">
+          <p className="font-bold mb-1">Voice Assistant Unavailable</p>
+          <p>Voice commands are not supported on this device. Please use Chrome on Android or Safari on iOS.</p>
+        </div>
+      </div>
+    );
   }
 
   // Manual reset function
