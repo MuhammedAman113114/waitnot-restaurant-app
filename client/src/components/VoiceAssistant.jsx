@@ -11,6 +11,8 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
   const [isSupported, setIsSupported] = useState(true);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [wakeWordDetected, setWakeWordDetected] = useState(false);
+  const [conversationState, setConversationState] = useState(null); // For multi-turn conversation
+  const [recommendedItems, setRecommendedItems] = useState([]);
   const recognitionRef = useRef(null);
 
   // Helper function to speak text
@@ -150,22 +152,44 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
   const processVoiceCommand = async (command) => {
     setIsProcessing(true);
     try {
-      const { data } = await axios.post('/api/voice/process', {
-        command,
-        restaurantId,
-        tableNumber
-      });
-
-      setResponse(data.reply);
+      const lowerCommand = command.toLowerCase();
       
-      // Speak response after a delay
-      setTimeout(() => {
-        speak(data.reply);
-      }, 500);
+      // If we're in a conversation state, handle follow-up
+      if (conversationState) {
+        await handleFollowUp(lowerCommand);
+        return;
+      }
+      
+      // Check if user is asking for recommendations on home page (no restaurantId)
+      if (!restaurantId && (
+        lowerCommand.includes('recommend') || 
+        lowerCommand.includes('suggest') || 
+        lowerCommand.includes('best') ||
+        lowerCommand.includes('top rated') ||
+        lowerCommand.includes('popular')
+      )) {
+        await handleRecommendationRequest();
+        return;
+      }
+      
+      // Regular order processing for QR order page
+      if (restaurantId) {
+        const { data } = await axios.post('/api/voice/process', {
+          command,
+          restaurantId,
+          tableNumber
+        });
 
-      // Handle different actions
-      if (data.action === 'order' && data.items.length > 0) {
-        onOrderProcessed?.(data);
+        setResponse(data.reply);
+        setTimeout(() => speak(data.reply), 500);
+
+        if (data.action === 'order' && data.items.length > 0) {
+          onOrderProcessed?.(data);
+        }
+      } else {
+        const msg = "Please scan the QR code at your table first to start ordering.";
+        setResponse(msg);
+        speak(msg);
       }
     } catch (error) {
       console.error('Error processing voice command:', error);
@@ -176,6 +200,158 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
       setIsProcessing(false);
       setWakeWordDetected(false);
     }
+  };
+
+  const handleRecommendationRequest = async () => {
+    try {
+      // Fetch all restaurants with their menus
+      const { data: restaurants } = await axios.get('/api/restaurants');
+      
+      // Collect all menu items with ratings
+      const allItems = [];
+      restaurants.forEach(restaurant => {
+        if (restaurant.menu) {
+          restaurant.menu.forEach(item => {
+            allItems.push({
+              ...item,
+              restaurantId: restaurant._id,
+              restaurantName: restaurant.name
+            });
+          });
+        }
+      });
+      
+      // Filter items with ratings and sort by rating
+      const ratedItems = allItems
+        .filter(item => item.averageRating && item.averageRating > 0)
+        .sort((a, b) => b.averageRating - a.averageRating)
+        .slice(0, 10); // Top 10 items
+      
+      if (ratedItems.length === 0) {
+        const msg = "Sorry, I couldn't find any rated items at the moment.";
+        setResponse(msg);
+        speak(msg);
+        return;
+      }
+      
+      setRecommendedItems(ratedItems);
+      
+      // Ask for veg/non-veg preference
+      const msg = "I found some highly rated items! Do you want vegetarian or non-vegetarian options?";
+      setResponse(msg);
+      speak(msg);
+      
+      setConversationState({
+        step: 'awaiting_veg_preference',
+        items: ratedItems
+      });
+    } catch (error) {
+      console.error('Error fetching recommendations:', error);
+      const msg = "Sorry, I couldn't fetch recommendations. Please try again.";
+      setResponse(msg);
+      speak(msg);
+    }
+  };
+
+  const handleFollowUp = async (command) => {
+    try {
+      if (conversationState.step === 'awaiting_veg_preference') {
+        // Determine veg/non-veg preference
+        const isVeg = command.includes('veg') && !command.includes('non');
+        const isNonVeg = command.includes('non') || command.includes('chicken') || command.includes('meat');
+        
+        if (!isVeg && !isNonVeg) {
+          const msg = "I didn't catch that. Please say 'vegetarian' or 'non-vegetarian'.";
+          setResponse(msg);
+          speak(msg);
+          return;
+        }
+        
+        // Filter items by preference
+        const filteredItems = conversationState.items.filter(item => {
+          if (isVeg) return item.isVeg === true;
+          if (isNonVeg) return item.isVeg === false;
+          return true;
+        });
+        
+        if (filteredItems.length === 0) {
+          const msg = `Sorry, no ${isVeg ? 'vegetarian' : 'non-vegetarian'} items found in top rated items.`;
+          setResponse(msg);
+          speak(msg);
+          setConversationState(null);
+          return;
+        }
+        
+        // Show top item
+        const topItem = filteredItems[0];
+        const msg = `Great! The top rated ${isVeg ? 'vegetarian' : 'non-vegetarian'} item is ${topItem.name} from ${topItem.restaurantName} with ${topItem.averageRating} stars rating. How many would you like to add to your cart?`;
+        setResponse(msg);
+        speak(msg);
+        
+        setConversationState({
+          step: 'awaiting_quantity',
+          selectedItem: topItem,
+          preference: isVeg ? 'veg' : 'non-veg'
+        });
+        
+      } else if (conversationState.step === 'awaiting_quantity') {
+        // Extract quantity
+        const quantity = extractQuantity(command);
+        
+        if (quantity === 0) {
+          const msg = "I didn't catch the quantity. Please say a number like 'one', 'two', or '1', '2'.";
+          setResponse(msg);
+          speak(msg);
+          return;
+        }
+        
+        const item = conversationState.selectedItem;
+        
+        // Navigate to restaurant page with item in cart
+        const msg = `Perfect! Adding ${quantity} ${item.name} to your cart. Redirecting you to ${item.restaurantName}...`;
+        setResponse(msg);
+        speak(msg);
+        
+        // Store cart item in localStorage and redirect
+        setTimeout(() => {
+          const cartItem = {
+            ...item,
+            quantity
+          };
+          localStorage.setItem('voice_cart_item', JSON.stringify(cartItem));
+          window.location.href = `/restaurant/${item.restaurantId}`;
+        }, 2000);
+        
+        setConversationState(null);
+      }
+    } catch (error) {
+      console.error('Error handling follow-up:', error);
+      const msg = "Sorry, something went wrong. Please try again.";
+      setResponse(msg);
+      speak(msg);
+      setConversationState(null);
+    } finally {
+      setIsProcessing(false);
+      setWakeWordDetected(false);
+    }
+  };
+
+  const extractQuantity = (text) => {
+    const numberWords = {
+      'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
+      'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10
+    };
+
+    // Check for digit
+    const digitMatch = text.match(/\b(\d+)\b/);
+    if (digitMatch) return parseInt(digitMatch[1]);
+
+    // Check for word
+    for (const [word, num] of Object.entries(numberWords)) {
+      if (text.includes(word)) return num;
+    }
+
+    return 0;
   };
 
   // Don't render if not supported
