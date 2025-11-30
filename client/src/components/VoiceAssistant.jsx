@@ -276,6 +276,7 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
       }
       
       // Check if user is requesting a specific food item on home page
+      // But only if NOT in a conversation already
       const hasFoodRequest = lowerCommand.includes('get me') || 
                             lowerCommand.includes('order') || 
                             lowerCommand.includes('i want') ||
@@ -283,7 +284,18 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
       
       console.log('Has food request keywords:', hasFoodRequest);
       
-      if (!restaurantId && hasFoodRequest) {
+      // If there's a wake word, clear any existing conversation and start fresh
+      const hasWakeWord = lowerCommand.includes('hey aman') || 
+                         lowerCommand.includes('hey amaan');
+      
+      if (hasWakeWord && hasFoodRequest) {
+        console.log('Wake word detected with food request - starting fresh conversation');
+        saveConversationState(null); // Clear old state
+        await handleSpecificFoodRequest(lowerCommand);
+        return;
+      }
+      
+      if (!restaurantId && hasFoodRequest && !conversationStateRef.current) {
         console.log('Handling specific food request');
         await handleSpecificFoodRequest(lowerCommand);
         return;
@@ -474,7 +486,17 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
 
   const handleFollowUp = async (command) => {
     try {
-      if (conversationState.step === 'awaiting_veg_preference') {
+      // Use the ref which has the latest state
+      const currentState = conversationStateRef.current;
+      
+      if (!currentState) {
+        console.log('No conversation state found in handleFollowUp');
+        return;
+      }
+      
+      console.log('HandleFollowUp - Current step:', currentState.step);
+      
+      if (currentState.step === 'awaiting_veg_preference') {
         // Determine veg/non-veg preference
         // Look for the LAST occurrence to get user's actual answer (not the question echo)
         const words = command.split(/\s+/);
@@ -506,7 +528,7 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
         }
         
         // Filter items by preference and sort by rating
-        const filteredItems = conversationState.items
+        const filteredItems = currentState.items
           .filter(item => {
             if (isVeg) return item.isVeg === true;
             if (isNonVeg) return item.isVeg === false;
@@ -521,7 +543,7 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
           });
         
         if (filteredItems.length === 0) {
-          const msg = `Sorry, no ${isVeg ? 'vegetarian' : 'non-vegetarian'} ${conversationState.foodName || 'items'} found.`;
+          const msg = `Sorry, no ${isVeg ? 'vegetarian' : 'non-vegetarian'} ${currentState.foodName || 'items'} found.`;
           setResponse(msg);
           speak(msg);
           saveConversationState(null);
@@ -532,8 +554,8 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
         const topItem = filteredItems[0];
         
         // If quantity was already specified in initial command, skip quantity question
-        if (conversationState.requestedQuantity) {
-          const quantity = conversationState.requestedQuantity;
+        if (currentState.requestedQuantity) {
+          const quantity = currentState.requestedQuantity;
           const ratingText = topItem.averageRating ? ` with ${topItem.averageRating} stars rating` : '';
           const msg = `Great! I've selected ${quantity} ${topItem.name} from ${topItem.restaurantName}${ratingText}. Now, please provide your delivery address.`;
           setResponse(msg);
@@ -549,7 +571,7 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
         } else {
           // Ask for quantity
           const ratingText = topItem.averageRating ? ` with ${topItem.averageRating} stars rating` : '';
-          const msg = `Great! The best rated ${isVeg ? 'vegetarian' : 'non-vegetarian'} ${conversationState.foodName || 'item'} is ${topItem.name} from ${topItem.restaurantName}${ratingText}. How many would you like to order?`;
+          const msg = `Great! The best rated ${isVeg ? 'vegetarian' : 'non-vegetarian'} ${currentState.foodName || 'item'} is ${topItem.name} from ${topItem.restaurantName}${ratingText}. How many would you like to order?`;
           setResponse(msg);
           speak(msg);
           
@@ -561,7 +583,7 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
           saveConversationState(newState);
         }
         
-      } else if (conversationState.step === 'awaiting_quantity') {
+      } else if (currentState.step === 'awaiting_quantity') {
         // Extract quantity
         const quantity = extractQuantity(command);
         
@@ -572,7 +594,7 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
           return;
         }
         
-        const item = conversationState.selectedItem;
+        const item = currentState.selectedItem;
         const msg = `Perfect! ${quantity} ${item.name}. Now, please provide your delivery address.`;
         setResponse(msg);
         speak(msg);
@@ -581,11 +603,11 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
           step: 'awaiting_address',
           selectedItem: item,
           quantity: quantity,
-          preference: conversationState.preference
+          preference: currentState.preference
         };
         saveConversationState(newState);
         
-      } else if (conversationState.step === 'awaiting_address') {
+      } else if (currentState.step === 'awaiting_address') {
         // Save address
         const address = command.trim();
         
@@ -601,13 +623,13 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
         speak(msg);
         
         const newState = {
-          ...conversationState,
+          ...currentState,
           step: 'awaiting_phone',
           address: address
         };
         saveConversationState(newState);
         
-      } else if (conversationState.step === 'awaiting_phone') {
+      } else if (currentState.step === 'awaiting_phone') {
         // Extract phone number
         const phoneMatch = command.match(/\d{10}/);
         
@@ -624,13 +646,13 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
         speak(msg);
         
         const newState = {
-          ...conversationState,
+          ...currentState,
           step: 'awaiting_name',
           phone: phone
         };
         saveConversationState(newState);
         
-      } else if (conversationState.step === 'awaiting_name') {
+      } else if (currentState.step === 'awaiting_name') {
         // Save name
         const name = command.trim();
         
@@ -646,13 +668,13 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
         speak(msg);
         
         const newState = {
-          ...conversationState,
+          ...currentState,
           step: 'awaiting_payment',
           name: name
         };
         saveConversationState(newState);
         
-      } else if (conversationState.step === 'awaiting_payment') {
+      } else if (currentState.step === 'awaiting_payment') {
         // Determine payment method
         const isCOD = command.includes('cash') || command.includes('cod') || command.includes('delivery');
         const isOnline = command.includes('online') || command.includes('upi') || command.includes('card');
@@ -667,7 +689,7 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
         const paymentMethod = isCOD ? 'cash' : 'upi';
         
         // Place the order
-        await placeVoiceOrder(conversationState, paymentMethod);
+        await placeVoiceOrder(currentState, paymentMethod);
       }
     } catch (error) {
       console.error('Error handling follow-up:', error);
