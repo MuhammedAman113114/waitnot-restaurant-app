@@ -183,7 +183,7 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
             return;
           }
           
-          const lowerTranscript = finalTranscript.toLowerCase();
+          // lowerTranscript already defined above, reuse it
           const hasWakeWord = lowerTranscript.includes('hey aman') || 
                              lowerTranscript.includes('hey amaan') ||
                              lowerTranscript.includes('hey aman');
