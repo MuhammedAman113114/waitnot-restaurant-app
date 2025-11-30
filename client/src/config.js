@@ -1,9 +1,9 @@
 // API Configuration
 // Can be overridden in Settings page (stored in localStorage)
 
-// Get from localStorage or use defaults (Production URL)
-export const API_URL = localStorage.getItem('apiUrl') || 'https://waitnot-restaurant-app.onrender.com/api';
-export const SOCKET_URL = localStorage.getItem('socketUrl') || 'https://waitnot-restaurant-app.onrender.com';
+// Get from localStorage or use defaults (Local Development)
+export const API_URL = localStorage.getItem('apiUrl') || 'http://localhost:5000/api';
+export const SOCKET_URL = localStorage.getItem('socketUrl') || 'http://localhost:5000';
 
 // Default values:
 // - For mobile device: http://YOUR_COMPUTER_IP:5000/api
