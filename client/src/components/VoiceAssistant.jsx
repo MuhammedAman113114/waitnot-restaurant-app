@@ -941,9 +941,9 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
         throw new Error('Missing customer information');
       }
       
-      const msg = `Placing your order for ${quantity} ${selectedItem.name}. Please wait...`;
-      setResponse(msg);
-      speak(msg);
+      const placingMsg = `⏳ Placing your order for ${quantity} ${selectedItem.name} from ${selectedItem.restaurantName}. Please wait...`;
+      setResponse(placingMsg);
+      speak(placingMsg);
       
       // Create order via API
       const orderData = {
@@ -967,9 +967,25 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
       
       const { data } = await axios.post('/api/orders', orderData);
       
-      const successMsg = `Order placed successfully! Your order ID is ${data._id}. Total amount: ₹${orderData.totalAmount}. ${paymentMethod === 'cash' ? 'Pay cash on delivery.' : 'Payment will be processed.'} Thank you!`;
+      // Create detailed success message
+      const itemName = selectedItem.name;
+      const restaurantName = selectedItem.restaurantName;
+      const orderId = data._id.substring(0, 8); // Shortened for easier reading
+      const totalAmount = orderData.totalAmount;
+      const paymentInfo = paymentMethod === 'cash' ? 'Pay cash on delivery' : 'Payment will be processed online';
+      
+      const successMsg = `🎉 Success! Your order for ${quantity} ${itemName} from ${restaurantName} has been placed. Order ID: ${orderId}. Total: ₹${totalAmount}. ${paymentInfo}. Your food will arrive soon. Thank you for using Waitnot!`;
+      
       setResponse(successMsg);
       speak(successMsg);
+      
+      // Show success notification
+      console.log('✅ ORDER PLACED SUCCESSFULLY!');
+      console.log(`📦 Order ID: ${data._id}`);
+      console.log(`🍕 Item: ${quantity}x ${itemName}`);
+      console.log(`🏪 Restaurant: ${restaurantName}`);
+      console.log(`💰 Total: ₹${totalAmount}`);
+      console.log(`💳 Payment: ${paymentMethod}`);
       
       // Clear all conversation state after successful order
       console.log('Order placed successfully - clearing conversation state');
@@ -977,10 +993,10 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
       conversationStateRef.current = null;
       setConversationState(null);
       
-      // Redirect to order confirmation after 5 seconds
+      // Redirect to order confirmation after 8 seconds (give time to hear message)
       setTimeout(() => {
         window.location.href = `/restaurant/${selectedItem.restaurantId}`;
-      }, 5000);
+      }, 8000);
       
     } catch (error) {
       console.error('Error placing order:', error);
