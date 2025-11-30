@@ -28,6 +28,7 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
   const recognitionRef = useRef(null);
   const conversationStateRef = useRef(loadConversationState()); // Initialize ref with saved state
   const isSpeakingRef = useRef(false); // Ref for isSpeaking to use in callbacks
+  const lastSpeechTimeRef = useRef(0); // Track when TTS last ended
 
   // Helper function to speak text
   const speak = (text) => {
@@ -69,21 +70,23 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
         isSpeakingRef.current = true;
       };
       
-      // Resume recognition after speaking with optimized delay
+      // Resume recognition after speaking with longer delay to prevent feedback
       utterance.onend = () => {
-        console.log('TTS ended, will restart recognition in 1 second');
+        console.log('TTS ended, starting 3-second mute period');
+        lastSpeechTimeRef.current = Date.now(); // Mark when speech ended
+        
         setTimeout(() => {
           setIsSpeaking(false);
           isSpeakingRef.current = false;
           if (isListening) {
             try {
               recognitionRef.current?.start();
-              console.log('Recognition restarted after TTS');
+              console.log('✅ Recognition restarted after mute period');
             } catch (e) {
               console.log('Could not restart recognition:', e);
             }
           }
-        }, 1000); // Reduced to 1 second for faster response
+        }, 3000); // 3 seconds to ensure TTS audio has completely finished
       };
       
       utterance.onerror = (error) => {
@@ -158,6 +161,13 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
           return;
         }
         
+        // CRITICAL: Don't process if within 3 seconds of last speech ending (mute period)
+        const timeSinceLastSpeech = Date.now() - lastSpeechTimeRef.current;
+        if (timeSinceLastSpeech < 3000) {
+          console.log(`🔇 MUTE PERIOD - Ignoring input (${timeSinceLastSpeech}ms since TTS ended)`);
+          return;
+        }
+        
         let finalTranscript = '';
         let totalConfidence = 0;
         let finalResultsCount = 0;
@@ -181,15 +191,13 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
           const avgConfidence = finalResultsCount > 0 ? totalConfidence / finalResultsCount : 0;
           console.log(`Final transcript: "${finalTranscript}" (avg confidence: ${(avgConfidence * 100).toFixed(1)}%)`);
           
-          setTranscript(finalTranscript);
-          
           // Don't process if assistant is currently speaking
           if (isSpeakingRef.current) {
             console.log('Ignoring transcript while assistant is speaking:', finalTranscript);
             return;
           }
           
-          // Also ignore if transcript contains common assistant phrases (feedback loop detection)
+          // ENHANCED: Detect assistant feedback loop - check for ANY assistant phrases
           const assistantPhrases = [
             'would you like',
             'how many would you like',
@@ -198,18 +206,33 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
             'placing your order',
             'great choice',
             'perfect',
-            'sure'
+            'say a for',
+            'say b for',
+            'vegetarian or non',
+            'non vegetarian',
+            'waitnot',
+            'aman assistant'
           ];
           
           const lowerTranscript = finalTranscript.toLowerCase();
+          
+          // Check if transcript contains assistant phrases (even in short messages)
           const containsAssistantPhrase = assistantPhrases.some(phrase => 
-            lowerTranscript.includes(phrase) && lowerTranscript.length > 50
+            lowerTranscript.includes(phrase)
           );
           
           if (containsAssistantPhrase) {
-            console.log('Ignoring transcript - appears to be assistant feedback:', finalTranscript);
+            console.log('🚫 FEEDBACK LOOP DETECTED - Ignoring assistant echo:', finalTranscript);
             return;
           }
+          
+          // Additional check: if transcript is very long (>100 chars), likely feedback
+          if (finalTranscript.length > 100) {
+            console.log('🚫 FEEDBACK LOOP - Transcript too long, likely echo:', finalTranscript.substring(0, 50) + '...');
+            return;
+          }
+          
+          setTranscript(finalTranscript);
           
           // lowerTranscript already defined above, reuse it
           const hasWakeWord = lowerTranscript.includes('hey aman') || 
