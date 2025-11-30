@@ -131,14 +131,32 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
 
       recognitionRef.current.onresult = (event) => {
         let finalTranscript = '';
+        let totalConfidence = 0;
+        let finalResultsCount = 0;
+        
         for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            finalTranscript += transcript;
+          const result = event.results[i];
+          const transcript = result[0].transcript;
+          const confidence = result[0].confidence;
+          
+          if (result.isFinal) {
+            console.log(`Speech result: "${transcript}" (confidence: ${(confidence * 100).toFixed(1)}%)`);
+            
+            // Only accept results with confidence > 60%
+            if (confidence > 0.6) {
+              finalTranscript += transcript;
+              totalConfidence += confidence;
+              finalResultsCount++;
+            } else {
+              console.log(`Rejected low confidence result: "${transcript}" (${(confidence * 100).toFixed(1)}%)`);
+            }
           }
         }
 
         if (finalTranscript) {
+          const avgConfidence = finalResultsCount > 0 ? totalConfidence / finalResultsCount : 0;
+          console.log(`Final transcript: "${finalTranscript}" (avg confidence: ${(avgConfidence * 100).toFixed(1)}%)`);
+          
           setTranscript(finalTranscript);
           
           // Don't process if assistant is currently speaking
