@@ -5,6 +5,7 @@ import axios from 'axios';
 import io from 'socket.io-client';
 import BillModal from '../components/BillModal';
 import RestaurantAnalytics from '../components/RestaurantAnalytics';
+import AdvancedAnalytics from '../components/AdvancedAnalytics';
 import PaymentSettingsTab from '../components/PaymentSettingsTab';
 
 export default function RestaurantDashboard() {
@@ -715,7 +716,10 @@ export default function RestaurantDashboard() {
         </div>
 
         {activeTab === 'analytics' && (
-          <RestaurantAnalytics orders={orders} restaurant={restaurant} />
+          <div className="space-y-6">
+            <RestaurantAnalytics orders={orders} restaurant={restaurant} />
+            <AdvancedAnalytics orders={orders} restaurant={restaurant} />
+          </div>
         )}
 
         {activeTab === 'delivery' && (
