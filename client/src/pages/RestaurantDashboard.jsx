@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, QrCode, LogOut, Film, Eye, Heart, X, CreditCard, Moon, Sun } from 'lucide-react';
+import { Plus, Edit, Trash2, QrCode, LogOut, Film, Eye, Heart, X, CreditCard, Moon, Sun, BarChart3 } from 'lucide-react';
 import axios from 'axios';
 import io from 'socket.io-client';
 import BillModal from '../components/BillModal';
+import RestaurantAnalytics from '../components/RestaurantAnalytics';
 
 export default function RestaurantDashboard() {
   const navigate = useNavigate();
@@ -672,12 +673,25 @@ export default function RestaurantDashboard() {
           <button
             onClick={() => setActiveTab('payment')}
             className={`px-3 sm:px-6 py-1.5 sm:py-2 rounded-lg font-semibold whitespace-nowrap text-sm sm:text-base ${
-              activeTab === 'payment' ? 'bg-primary text-white' : 'bg-white text-gray-700'
+              activeTab === 'payment' ? 'bg-primary text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'
             }`}
           >
             Payment
           </button>
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`px-3 sm:px-6 py-1.5 sm:py-2 rounded-lg font-semibold whitespace-nowrap text-sm sm:text-base ${
+              activeTab === 'analytics' ? 'bg-primary text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+            }`}
+          >
+            <BarChart3 size={18} className="inline mr-1 sm:mr-2" />
+            Analytics
+          </button>
         </div>
+
+        {activeTab === 'analytics' && (
+          <RestaurantAnalytics orders={orders} restaurant={restaurant} />
+        )}
 
         {activeTab === 'delivery' && (
           <div className="space-y-3 sm:space-y-4">
