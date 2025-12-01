@@ -123,22 +123,28 @@ export default function RestaurantDashboard() {
 
   const fetchRestaurant = async (id) => {
     try {
-      console.log('Fetching restaurant with ID:', id);
+      console.log('=== Fetching Restaurant Data ===');
+      console.log('Restaurant ID:', id);
       const { data } = await axios.get(`/api/restaurants/${id}`);
-      console.log('Restaurant fetched:', data.name, '(ID:', data._id, ')');
+      console.log('✓ Restaurant fetched:', data.name, '(ID:', data._id, ')');
       setRestaurant(data);
       
       // Verify the restaurantId in localStorage matches what we fetched
       const storedId = localStorage.getItem('restaurantId');
       if (storedId !== data._id) {
-        console.warn('⚠️ Restaurant ID mismatch!');
+        console.warn('⚠️ Restaurant ID mismatch detected!');
         console.warn('Stored ID:', storedId);
         console.warn('Fetched ID:', data._id);
-        // Fix the mismatch by updating localStorage
+        console.warn('Fixing mismatch by updating localStorage...');
         localStorage.setItem('restaurantId', data._id);
       }
+      
+      console.log('=== Data Isolation Check ===');
+      console.log('Current Restaurant:', data.name);
+      console.log('Restaurant ID:', data._id);
+      console.log('All data will be filtered for this restaurant only');
     } catch (error) {
-      console.error('Error fetching restaurant:', error);
+      console.error('❌ Error fetching restaurant:', error);
       // If restaurant not found, redirect to login
       if (error.response?.status === 404) {
         console.error('Restaurant not found, clearing credentials');
@@ -151,8 +157,20 @@ export default function RestaurantDashboard() {
 
   const fetchOrders = async (id) => {
     try {
+      console.log('Fetching orders for restaurant:', id);
       const { data } = await axios.get(`/api/orders/restaurant/${id}`);
-      setOrders(data);
+      
+      // Verify all orders belong to this restaurant
+      const validOrders = data.filter(order => order.restaurantId === id);
+      if (validOrders.length !== data.length) {
+        console.warn('⚠️ Data isolation issue: Some orders did not belong to this restaurant');
+        console.warn('Expected restaurant:', id);
+        console.warn('Total orders received:', data.length);
+        console.warn('Valid orders:', validOrders.length);
+      }
+      
+      console.log('Orders fetched:', validOrders.length, 'orders');
+      setOrders(validOrders);
     } catch (error) {
       console.error('Error fetching orders:', error);
     }
@@ -161,14 +179,10 @@ export default function RestaurantDashboard() {
   const fetchReels = async (restaurantId) => {
     try {
       console.log('Fetching reels for restaurant:', restaurantId);
-      const { data } = await axios.get('/api/reels');
-      console.log('All reels:', data);
-      const myReels = data.filter(reel => {
-        const reelRestaurantId = reel.restaurantId?._id || reel.restaurantId;
-        return reelRestaurantId === restaurantId;
-      });
-      console.log('My reels:', myReels);
-      setReels(myReels);
+      // Fetch only reels for this specific restaurant
+      const { data } = await axios.get(`/api/reels?restaurantId=${restaurantId}`);
+      console.log('Restaurant reels fetched:', data.length, 'reels');
+      setReels(data);
     } catch (error) {
       console.error('Error fetching reels:', error);
       console.error('Error details:', error.response?.data);

@@ -3,11 +3,41 @@ import { reelDB } from '../db.js';
 
 const router = express.Router();
 
-// Get all reels
+// Get all reels (optionally filter by restaurant)
 router.get('/', async (req, res) => {
   try {
     const reels = await reelDB.findAll();
+    
+    // Filter by restaurant if restaurantId query param is provided
+    const { restaurantId } = req.query;
+    if (restaurantId) {
+      const filteredReels = reels.filter(reel => {
+        const reelRestaurantId = reel.restaurantId?._id || reel.restaurantId;
+        return reelRestaurantId === restaurantId;
+      });
+      console.log(`Filtered reels for restaurant ${restaurantId}:`, filteredReels.length);
+      return res.json(filteredReels);
+    }
+    
     res.json(reels);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get reels by restaurant ID (dedicated endpoint for better clarity)
+router.get('/restaurant/:restaurantId', async (req, res) => {
+  try {
+    const { restaurantId } = req.params;
+    const reels = await reelDB.findAll();
+    
+    const filteredReels = reels.filter(reel => {
+      const reelRestaurantId = reel.restaurantId?._id || reel.restaurantId;
+      return reelRestaurantId === restaurantId;
+    });
+    
+    console.log(`Reels for restaurant ${restaurantId}:`, filteredReels.length);
+    res.json(filteredReels);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -67,11 +97,23 @@ router.patch('/:id/like', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     console.log('Updating reel:', req.params.id, 'with data:', req.body);
-    const reel = await reelDB.update(req.params.id, req.body);
-    if (!reel) {
+    
+    // Get existing reel to verify ownership
+    const existingReel = await reelDB.findById(req.params.id);
+    if (!existingReel) {
       console.log('Reel not found:', req.params.id);
       return res.status(404).json({ error: 'Reel not found' });
     }
+    
+    // Verify restaurant ownership if restaurantId is provided in request
+    if (req.body.restaurantId && existingReel.restaurantId !== req.body.restaurantId) {
+      console.warn('⚠️ Unauthorized reel update attempt');
+      console.warn('Reel belongs to:', existingReel.restaurantId);
+      console.warn('Update requested by:', req.body.restaurantId);
+      return res.status(403).json({ error: 'Unauthorized: Cannot update reels from another restaurant' });
+    }
+    
+    const reel = await reelDB.update(req.params.id, req.body);
     console.log('Reel updated:', reel);
     res.json(reel);
   } catch (error) {
@@ -84,11 +126,23 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     console.log('Deleting reel:', req.params.id);
-    const reel = await reelDB.delete(req.params.id);
-    if (!reel) {
+    
+    // Get existing reel to verify it exists
+    const existingReel = await reelDB.findById(req.params.id);
+    if (!existingReel) {
       console.log('Reel not found:', req.params.id);
       return res.status(404).json({ error: 'Reel not found' });
     }
+    
+    // Optional: Add restaurant verification if restaurantId is provided in query
+    if (req.query.restaurantId && existingReel.restaurantId !== req.query.restaurantId) {
+      console.warn('⚠️ Unauthorized reel deletion attempt');
+      console.warn('Reel belongs to:', existingReel.restaurantId);
+      console.warn('Delete requested by:', req.query.restaurantId);
+      return res.status(403).json({ error: 'Unauthorized: Cannot delete reels from another restaurant' });
+    }
+    
+    const reel = await reelDB.delete(req.params.id);
     console.log('Reel deleted:', reel);
     res.json({ message: 'Reel deleted successfully', reel });
   } catch (error) {
