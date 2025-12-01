@@ -220,9 +220,11 @@ export default function Reels() {
   };
 
   return (
-    <div className="fixed inset-0 w-full h-full bg-black overflow-hidden">
-      {/* Loading Animation */}
-      {isLoading && (
+    <div className="fixed inset-0 w-full h-full bg-black overflow-hidden flex items-center justify-center">
+      {/* Mobile-sized container with black bars on sides */}
+      <div className="relative w-full h-full max-w-[480px] bg-black">
+        {/* Loading Animation */}
+        {isLoading && (
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-br from-gray-900 via-black to-gray-900">
           <div className="relative text-center">
             {/* Animated Food Icons Carousel */}
@@ -246,10 +248,10 @@ export default function Reels() {
             <p className="text-gray-400 text-sm mt-2">Get ready for amazing food content</p>
           </div>
         </div>
-      )}
+        )}
 
-      {/* Top Controls */}
-      <div className="absolute top-4 left-4 right-4 z-50 flex items-center justify-between pointer-events-none">
+        {/* Top Controls */}
+        <div className="absolute top-4 left-4 right-4 z-50 flex items-center justify-between pointer-events-none">
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -260,23 +262,23 @@ export default function Reels() {
           {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
         </button>
         
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            window.location.href = '/';
-          }}
-          className="bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 pointer-events-auto transition-all"
-        >
-          <X size={24} />
-        </button>
-      </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              window.location.href = '/';
+            }}
+            className="bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 pointer-events-auto transition-all"
+          >
+            <X size={24} />
+          </button>
+        </div>
 
-      {/* Reels Container */}
-      <div
-        ref={containerRef}
-        className="w-full h-full overflow-y-scroll overflow-x-hidden snap-y snap-mandatory hide-scrollbar"
-        style={{ scrollSnapType: 'y mandatory' }}
-      >
+        {/* Reels Container */}
+        <div
+          ref={containerRef}
+          className="w-full h-full overflow-y-scroll overflow-x-hidden snap-y snap-mandatory hide-scrollbar"
+          style={{ scrollSnapType: 'y mandatory' }}
+        >
         {reels.map((reel, index) => (
           <div
             key={reel._id}
@@ -563,6 +565,7 @@ export default function Reels() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
