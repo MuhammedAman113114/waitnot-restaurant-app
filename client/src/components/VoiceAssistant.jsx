@@ -35,6 +35,8 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
   const isSpeakingRef = useRef(false); // Ref for isSpeaking to use in callbacks
   const lastSpokenTextRef = useRef(''); // Track last spoken text to prevent duplicates
   const speechQueueRef = useRef([]); // Queue for speech messages
+  const lastProcessedCommandRef = useRef(''); // Track last processed command
+  const lastProcessedTimeRef = useRef(0); // Track when last command was processed
 
   // Process speech queue
   const processSpeechQueue = () => {
@@ -94,9 +96,9 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
               } catch (e) {
                 console.log('Could not restart recognition:', e);
               }
-            }, 1000); // Extra 1 second safety delay
+            }, 2000); // Extra 2 second safety delay (increased from 1s)
           }
-        }, 2000);
+        }, 3000); // Increased from 2s to 3s
       };
       
       utterance.onerror = (error) => {
@@ -288,17 +290,25 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
             'would you like',
             'you like a vegetarian',
             'you like a non',
+            'vegetarian or non',
+            'non-vegetarian',
             'how many would you like',
+            'how many',
             'please provide',
             'order placed successfully',
             'placing your order',
             'great choice',
             'perfect',
             'sure!',
+            'sure would you',
             'i have selected',
             'i\'ve selected',
             'your order for',
-            'your food will arrive'
+            'your food will arrive',
+            'the best rated',
+            'from spice garden',
+            'pizza burger',
+            'biryani'
           ];
           
           const lowerTranscript = finalTranscript.toLowerCase();
@@ -452,6 +462,18 @@ export default function VoiceAssistant({ restaurantId, tableNumber, onOrderProce
   };
 
   const processVoiceCommand = async (command) => {
+    // Prevent duplicate command processing
+    const now = Date.now();
+    const timeSinceLastCommand = now - lastProcessedTimeRef.current;
+    
+    if (lastProcessedCommandRef.current === command && timeSinceLastCommand < 5000) {
+      console.log('Ignoring duplicate command within 5 seconds:', command);
+      return;
+    }
+    
+    lastProcessedCommandRef.current = command;
+    lastProcessedTimeRef.current = now;
+    
     setIsProcessing(true);
     try {
       const lowerCommand = command.toLowerCase();
