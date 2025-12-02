@@ -4,6 +4,40 @@
 
 [![Live Demo](https://img.shields.io/badge/demo-live-success)](https://waitnot-restaurant-app.vercel.app)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Download APK](https://img.shields.io/badge/Download-APK-green.svg)](https://github.com/MuhammedAman113114/waitnot-restaurant-app/raw/main/client/android/app/build/outputs/apk/debug/app-debug.apk)
+
+---
+
+## 📲 Download Mobile App
+
+### 🤖 Android APK
+
+**[⬇️ Download Waitnot APK (Latest Version)](https://github.com/MuhammedAman113114/waitnot-restaurant-app/raw/main/client/android/app/build/outputs/apk/debug/app-debug.apk)**
+
+#### Installation Instructions:
+1. **Download** the APK file using the link above
+2. **Enable** "Install from Unknown Sources" in your Android settings
+3. **Open** the downloaded APK file
+4. **Tap** "Install" and wait for installation to complete
+5. **Launch** Waitnot from your app drawer
+
+#### Features in Mobile App:
+- ✅ Native voice recognition (better than web)
+- ✅ Offline menu caching
+- ✅ Push notifications for order updates
+- ✅ Faster performance
+- ✅ Full feature parity with web version
+- ✅ QR code scanner built-in
+- ✅ Dark mode support
+
+#### System Requirements:
+- Android 7.0 (Nougat) or higher
+- 50 MB free storage
+- Internet connection for ordering
+
+#### Alternative Download Methods:
+- **Direct Link**: [app-debug.apk](https://github.com/MuhammedAman113114/waitnot-restaurant-app/raw/main/client/android/app/build/outputs/apk/debug/app-debug.apk)
+- **Clone & Build**: See [Mobile App](#-mobile-app) section below
 
 ---
 
