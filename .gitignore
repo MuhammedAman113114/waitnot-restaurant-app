@@ -5,7 +5,12 @@ server/node_modules/
 
 # Build outputs
 client/dist/
-client/android/app/build/
+client/android/app/build/*
+# But allow the APK output folder
+!client/android/app/build/outputs/
+!client/android/app/build/outputs/apk/
+!client/android/app/build/outputs/apk/debug/
+!client/android/app/build/outputs/apk/debug/app-debug.apk
 client/android/.gradle/
 client/android/local.properties
 client/android/.idea/
@@ -30,7 +35,9 @@ yarn-debug.log*
 yarn-error.log*
 
 # APK files (comment out if you want to upload APKs)
-*.apk
+# *.apk  # Commented out to allow APK uploads
+# Allow specific APK for download
+!client/android/app/build/outputs/apk/debug/app-debug.apk
 
 # Temporary files
 *.tmp
