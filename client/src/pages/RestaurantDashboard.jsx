@@ -55,11 +55,26 @@ export default function RestaurantDashboard() {
   };
 
   useEffect(() => {
-    const restaurantId = localStorage.getItem('restaurantId');
-    const restaurantToken = localStorage.getItem('restaurantToken');
+    // CRITICAL: Check both localStorage AND sessionStorage
+    // sessionStorage is tab-specific and won't be affected by other tabs
+    let restaurantId = sessionStorage.getItem('restaurantId');
+    let restaurantToken = sessionStorage.getItem('restaurantToken');
+    
+    // If not in sessionStorage, get from localStorage and save to sessionStorage
+    if (!restaurantId || !restaurantToken) {
+      restaurantId = localStorage.getItem('restaurantId');
+      restaurantToken = localStorage.getItem('restaurantToken');
+      
+      if (restaurantId && restaurantToken) {
+        // Save to sessionStorage for this tab
+        sessionStorage.setItem('restaurantId', restaurantId);
+        sessionStorage.setItem('restaurantToken', restaurantToken);
+        console.log('💾 Saved to sessionStorage for tab protection');
+      }
+    }
     
     console.log('=== Restaurant Dashboard Loading ===');
-    console.log('Restaurant ID from localStorage:', restaurantId);
+    console.log('Restaurant ID from sessionStorage:', restaurantId);
     console.log('Restaurant Token exists:', !!restaurantToken);
     
     if (!restaurantId || !restaurantToken) {
@@ -656,6 +671,9 @@ export default function RestaurantDashboard() {
   const logout = () => {
     localStorage.removeItem('restaurantToken');
     localStorage.removeItem('restaurantId');
+    sessionStorage.removeItem('restaurantToken');
+    sessionStorage.removeItem('restaurantId');
+    console.log('🚪 Logged out - cleared both localStorage and sessionStorage');
     navigate('/restaurant-login');
   };
 

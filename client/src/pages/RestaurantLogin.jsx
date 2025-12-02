@@ -20,8 +20,17 @@ export default function RestaurantLogin() {
       const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
       const { data } = await axios.post(endpoint, formData);
       
+      // Save to BOTH localStorage and sessionStorage
+      // sessionStorage is tab-specific and prevents cross-tab interference
       localStorage.setItem('restaurantToken', data.token);
       localStorage.setItem('restaurantId', data.restaurant._id);
+      sessionStorage.setItem('restaurantToken', data.token);
+      sessionStorage.setItem('restaurantId', data.restaurant._id);
+      
+      console.log('✅ Logged in as:', data.restaurant.name);
+      console.log('✅ Restaurant ID:', data.restaurant._id);
+      console.log('✅ Saved to both localStorage and sessionStorage');
+      
       navigate('/restaurant-dashboard');
     } catch (error) {
       alert(error.response?.data?.error || 'Authentication failed');
